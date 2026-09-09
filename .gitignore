@@ -1,0 +1,21 @@
+# Raw, uncompressed captures never get committed - only the compressed
+# copies that land in solutions/<problem>/media/ do.
+raw/
+archive/
+
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# Local run state
+.lc_state.json
+
+# Compiled C++ artifacts
+*.exe
+*.o
+*.obj
+build/
+
+.DS_Store
+Thumbs.db

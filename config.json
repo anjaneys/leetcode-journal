@@ -1,0 +1,63 @@
+{
+  "github": {
+    "repo": "",
+    "branch": "main"
+  },
+  "author": {
+    "name": "Anjaney Sharma"
+  },
+  "languages": [
+    "python",
+    "cpp"
+  ],
+  "storage": {
+    "raw_root": "D:/LeetCodeJournal/raw"
+  },
+  "recorder": {
+    "backend": "ffmpeg",
+    "screen": {
+      "enabled": true,
+      "framerate": 15,
+      "capture_cursor": true,
+      "borrow_camera_audio": true,
+      "capture_crf": 26
+    },
+    "camera": {
+      "enabled": true,
+      "device": "EMEET SmartCam C960",
+      "framerate": 30,
+      "size": "1280x720",
+      "capture_crf": 28
+    },
+    "audio": {
+      "mic_device": "Microphone (HyperX Cloud Stinger Core (Wireless) \u2013 PS)"
+    }
+  },
+  "obs": {
+    "host": "localhost",
+    "port": 4455,
+    "password": "7EJnMAhY6uCUjwuG",
+    "screen_scene": "LeetCode Screen"
+  },
+  "encode": {
+    "screen": {
+      "crf": 30,
+      "preset": "veryfast",
+      "scale_width": 2560,
+      "fps": 12,
+      "audio_kbps": 64
+    },
+    "camera": {
+      "crf": 32,
+      "preset": "veryfast",
+      "scale_width": 640,
+      "fps": 24,
+      "audio_kbps": 64
+    },
+    "max_mb_warn": 90
+  },
+  "publish": {
+    "auto_push": true,
+    "keep_raw": true
+  }
+}

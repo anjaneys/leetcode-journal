@@ -1,0 +1,58 @@
+// {ID}. {TITLE}  [{DIFFICULTY}]
+// {URL}
+//
+// Approach
+// --------
+// TODO: one paragraph on the idea that makes this work.
+//
+// Complexity
+// ----------
+// Time:  O(?)
+// Space: O(?)
+//
+// Build and run the local checks with:  lc test
+
+#include <algorithm>
+#include <climits>
+#include <iostream>
+#include <map>
+#include <queue>
+#include <set>
+#include <string>
+#include <unordered_map>
+#include <unordered_set>
+#include <vector>
+
+using namespace std;
+
+{SNIPPET}
+
+// ---------------------------------------------------------------------------
+// Local test driver. Not part of the LeetCode submission - `lc test` compiles
+// this file and runs main(). Add a CHECK line per example from the problem.
+// ---------------------------------------------------------------------------
+#ifdef LOCAL_TEST
+
+static int failures = 0;
+
+template <typename T>
+void check(const string& label, const T& got, const T& want) {
+    bool ok = (got == want);
+    if (!ok) ++failures;
+    cout << (ok ? "  pass  " : "  FAIL  ") << label << "\n";
+}
+
+int main() {
+    Solution s;
+
+    // TODO: fill in the examples. Note LeetCode signatures often take a
+    // non-const reference, so arguments need a named local:
+    //   vector<int> nums1{2, 7, 11, 15};
+    //   check<vector<int>>("example 1", s.twoSum(nums1, 9), {0, 1});
+
+    cout << (failures == 0 ? "all C++ checks passed\n"
+                           : to_string(failures) + " C++ check(s) failed\n");
+    return failures == 0 ? 0 : 1;
+}
+
+#endif

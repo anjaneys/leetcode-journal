@@ -1,0 +1,40 @@
+"""Local checks for {ID}. {TITLE}.
+
+Run them with:  lc test
+
+The cases below were lifted from the examples in the problem statement, so
+the arguments are already filled in. Add your own edge cases underneath.
+"""
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).parent))
+
+from solution import Solution  # noqa: E402
+
+
+{CASES}
+
+def test_examples():
+    s = Solution()
+    for i, (args, expected) in enumerate(CASES, start=1):
+        got = s.{METHOD}(*args)
+        assert got == expected, "example {}: {METHOD}({}) -> {!r}, expected {!r}".format(
+            i, ", ".join(repr(a) for a in args), got, expected)
+
+
+if __name__ == "__main__":
+    import traceback
+    failures = 0
+    for name, fn in sorted(globals().items()):
+        if name.startswith("test_") and callable(fn):
+            try:
+                fn()
+                print("  pass  " + name)
+            except Exception:
+                failures += 1
+                print("  FAIL  " + name)
+                traceback.print_exc()
+    print("all Python checks passed" if not failures
+          else "{} Python check(s) failed".format(failures))
+    sys.exit(1 if failures else 0)

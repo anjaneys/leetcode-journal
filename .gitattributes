@@ -1,0 +1,14 @@
+# Videos are stored with Git LFS. Without this, GitHub rejects any push
+# containing a file over 100 MB and warns above 50 MB.
+*.mp4  filter=lfs diff=lfs merge=lfs -text
+*.mkv  filter=lfs diff=lfs merge=lfs -text
+*.mov  filter=lfs diff=lfs merge=lfs -text
+*.webm filter=lfs diff=lfs merge=lfs -text
+
+# Poster frames stay as normal git objects - they are only a few KB.
+*.jpg  -filter -diff -merge text=auto
+*.png  -filter -diff -merge text=auto
+
+*.py   text eol=lf
+*.cpp  text eol=lf
+*.md   text eol=lf
