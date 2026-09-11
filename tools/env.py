@@ -28,6 +28,9 @@ _FALLBACKS = {
     "gh": [
         Path(r"C:\Program Files\GitHub CLI"),
     ],
+    "code": [
+        Path(os.environ.get("LOCALAPPDATA", "")) / "Programs" / "Microsoft VS Code",
+    ],
 }
 
 

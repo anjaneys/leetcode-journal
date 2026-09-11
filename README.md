@@ -8,6 +8,8 @@ _Nothing solved yet. Run `lc new <problem>` to start._
 
 ## How this repo is produced
 
+Each solve starts from a one-click desktop launcher that opens the problem, starts recording, and publishes when I hit Finish. Underneath it is a small CLI:
+
 ```
 lc new two-sum      scaffold the folder, pull the statement, start recording
 lc test             compile and run the local checks

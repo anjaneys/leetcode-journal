@@ -72,6 +72,25 @@ def html_to_markdown(content: str) -> str:
     return text.strip()
 
 
+_DAILY_QUERY = """
+query questionOfToday {
+  activeDailyCodingChallengeQuestion { question { titleSlug } }
+}
+"""
+
+
+def daily(timeout: int = 15) -> str | None:
+    """Slug of today's LeetCode daily challenge, or None if unreachable."""
+    try:
+        resp = requests.post(GRAPHQL, json={"query": _DAILY_QUERY},
+                             headers=_HEADERS, timeout=timeout)
+        resp.raise_for_status()
+        data = (resp.json().get("data") or {}).get("activeDailyCodingChallengeQuestion")
+        return data["question"]["titleSlug"] if data else None
+    except (requests.RequestException, ValueError, KeyError, TypeError):
+        return None
+
+
 def fetch(slug: str, timeout: int = 15) -> dict:
     """Return problem metadata. Always returns a dict; 'ok' says whether the
     network fetch actually succeeded."""

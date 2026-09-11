@@ -17,7 +17,8 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from tools import env, leetcode, postprocess, publish, recorder, runner, scaffold, writeup
+from tools import (env, leetcode, postprocess, publish, recorder, runner,
+                   scaffold, workspace, writeup)
 
 
 def log(msg=""):
@@ -40,7 +41,14 @@ def cmd_new(args) -> int:
         log("Run 'lc finish' before starting another problem.")
         return 1
 
-    slug = leetcode.slugify(args.problem)
+    if args.problem.strip().lower() == "daily":
+        slug = leetcode.daily()
+        if not slug:
+            log("Could not look up today's daily problem. Pass one explicitly.")
+            return 1
+        log("Today's daily problem is {}.".format(slug))
+    else:
+        slug = leetcode.slugify(args.problem)
     log("Fetching {} ...".format(slug))
     meta = leetcode.fetch(slug)
     if not meta["ok"]:
@@ -55,6 +63,13 @@ def cmd_new(args) -> int:
     for f in sorted(folder.iterdir()):
         if f.is_file() and not f.name.startswith("."):
             log("    " + f.name)
+
+    if args.open:
+        workspace.open_problem(meta["url"])
+        if workspace.open_editor(cfg, folder):
+            log("  opened the problem in your browser and the code in your editor")
+        else:
+            log("  opened the problem in your browser (editor not found)")
 
     if args.no_record:
         log("\nRecording skipped (--no-record). Start it later with 'lc start'.")
@@ -219,6 +234,80 @@ def cmd_finish(args) -> int:
     return 0
 
 
+def cmd_cancel(args) -> int:
+    import shutil
+    cfg = env.load_config()
+    state = env.load_state()
+    if not state:
+        log("No active session.")
+        return 0
+    if any(recorder.status(state).values()):
+        recorder.stop(cfg, state)
+        log("Recording stopped.")
+    session_dir = state.get("session_dir")
+    if session_dir and Path(session_dir).exists():
+        shutil.rmtree(session_dir, ignore_errors=True)
+        log("Deleted the raw capture.")
+    folder = Path(state["folder"]) if state.get("folder") else None
+    if folder and folder.exists():
+        if args.delete_folder:
+            tracked = publish.git("ls-files", "--", str(folder), check=False).stdout.strip()
+            if tracked:
+                log("Kept solutions/{} - it already has committed files.".format(folder.name))
+            else:
+                shutil.rmtree(folder, ignore_errors=True)
+                log("Deleted solutions/{}.".format(folder.name))
+        else:
+            log("Kept your code in solutions/{}.".format(folder.name))
+    env.clear_state()
+    log("Session discarded.")
+    return 0
+
+
+def cmd_shortcut(args) -> int:
+    """Create the desktop and Start Menu shortcuts for the launcher."""
+    pythonw = env.REPO / ".venv" / "Scripts" / "pythonw.exe"
+    launcher = env.REPO / "launcher.pyw"
+    icon = env.REPO / "assets" / "lc.ico"
+    hotkey = "" if args.hotkey.lower() == "none" else args.hotkey
+    # A shortcut's hotkey only fires from the Start Menu or Desktop, and two
+    # shortcuts claiming the same one conflict, so only the Start Menu copy
+    # carries it.
+    script = r"""
+$ws = New-Object -ComObject WScript.Shell
+$places = @(
+  @{ Dir = [Environment]::GetFolderPath('Desktop'); Hotkey = '' },
+  @{ Dir = (Join-Path $env:APPDATA 'Microsoft\Windows\Start Menu\Programs'); Hotkey = '__HOTKEY__' }
+)
+foreach ($p in $places) {
+  $lnk = $ws.CreateShortcut((Join-Path $p.Dir 'LeetCode Session.lnk'))
+  $lnk.TargetPath = '__PYTHONW__'
+  $lnk.Arguments = '"__LAUNCHER__"'
+  $lnk.WorkingDirectory = '__REPO__'
+  if (Test-Path '__ICON__') { $lnk.IconLocation = '__ICON__,0' }
+  $lnk.Description = 'Record a LeetCode solve and publish it to GitHub'
+  if ($p.Hotkey) { $lnk.Hotkey = $p.Hotkey }
+  $lnk.Save()
+  Write-Output ('  ' + $lnk.FullName)
+}
+"""
+    for token, value in (("__PYTHONW__", pythonw), ("__LAUNCHER__", launcher),
+                         ("__REPO__", env.REPO), ("__ICON__", icon),
+                         ("__HOTKEY__", hotkey)):
+        script = script.replace(token, str(value))
+    result = subprocess.run(
+        ["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", script],
+        capture_output=True, text=True)
+    if result.returncode != 0:
+        log("Could not create shortcuts:\n" + (result.stderr or result.stdout).strip())
+        return 1
+    log("Created shortcuts:")
+    log(result.stdout.rstrip())
+    if hotkey:
+        log("Hotkey: {} opens LeetCode Session from anywhere.".format(hotkey))
+    return 0
+
+
 def cmd_rebuild(args) -> int:
     cfg = env.load_config()
     count = 0
@@ -350,9 +439,11 @@ def build_parser() -> argparse.ArgumentParser:
     sub = p.add_subparsers(dest="command", required=True)
 
     s = sub.add_parser("new", help="scaffold a problem and start recording")
-    s.add_argument("problem", help="slug, title, or full LeetCode URL")
+    s.add_argument("problem", help="slug, title, full LeetCode URL, or 'daily'")
     s.add_argument("--no-record", action="store_true", help="scaffold only")
     s.add_argument("--force", action="store_true", help="overwrite existing files")
+    s.add_argument("--open", action="store_true",
+                   help="open the problem page and the code editor")
     s.set_defaults(func=cmd_new)
 
     s = sub.add_parser("start", help="start recording the active problem")
@@ -372,6 +463,16 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("-m", "--message", help="custom commit message")
     s.add_argument("--no-push", action="store_true", help="commit but do not push")
     s.set_defaults(func=cmd_finish)
+
+    s = sub.add_parser("cancel", help="stop recording and throw the session away")
+    s.add_argument("--delete-folder", action="store_true",
+                   help="also delete the scaffolded code folder if never committed")
+    s.set_defaults(func=cmd_cancel)
+
+    s = sub.add_parser("shortcut", help="create desktop and Start Menu shortcuts")
+    s.add_argument("--hotkey", default="Ctrl+Alt+L",
+                   help="global hotkey for the Start Menu shortcut, or 'none'")
+    s.set_defaults(func=cmd_shortcut)
 
     s = sub.add_parser("rebuild", help="regenerate every README from stored metadata")
     s.set_defaults(func=cmd_rebuild)

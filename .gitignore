@@ -19,3 +19,6 @@ build/
 
 .DS_Store
 Thumbs.db
+
+# Launcher crash log
+launcher-error.log

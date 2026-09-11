@@ -2,6 +2,34 @@
 
 How this repository records, compresses, and publishes a LeetCode solve.
 
+## One click: LeetCode Session
+
+Open **LeetCode Session** from the desktop, the Start Menu, or with
+**Ctrl+Alt+L** from anywhere.
+
+1. Paste a problem URL (it pre-fills if one is already on your clipboard),
+   type a slug or title, or press **Today's daily**.
+2. **Start** opens the problem in your browser and the solution files in
+   VS Code, and starts recording.
+3. A small timer window docks in the bottom-right corner with
+   **Run tests**, **Finish & upload**, and **Discard**.
+4. **Finish & upload** stops the recording, compresses it, commits, pushes,
+   and offers to open the result on GitHub.
+
+The timer window shows up in the screen recording, which is why it is small
+and docked in a corner. Untick **Keep on top** to let it sit behind your
+editor, or minimise it.
+
+If you close the window mid-solve, the recording keeps running. Reopening
+LeetCode Session picks the session back up. Closing is blocked while it is
+compressing or pushing, because interrupting that step could leave a
+half-written video.
+
+The launcher is a thin front end: every button runs the matching `lc`
+command, so everything below works the same way from a terminal. Re-run
+`lc shortcut` if you move the repo folder, or `lc shortcut --hotkey none` to
+drop the hotkey.
+
 ## The loop
 
 ```bash
@@ -22,6 +50,9 @@ Other commands:
 | `lc rebuild` | Regenerate every README from stored metadata |
 | `lc devices` | List webcams and microphones with their exact names |
 | `lc doctor` | Check the toolchain, LFS wiring, and devices |
+| `lc cancel` | Stop recording and delete the raw video; `--delete-folder` also removes uncommitted code |
+| `lc shortcut` | (Re)create the desktop and Start Menu shortcuts |
+| `lc new daily` | Start today's daily challenge |
 | `lc init-repo <name>` | Create the GitHub repo and push |
 
 `lc finish --no-push` commits locally without pushing.
