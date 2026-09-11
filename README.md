@@ -11,8 +11,8 @@ _Nothing solved yet. Run `lc new <problem>` to start._
 Each solve starts from a one-click desktop launcher that opens the problem, starts recording, and publishes when I hit Finish. Underneath it is a small CLI:
 
 ```
-lc new two-sum      scaffold the folder, pull the statement, start recording
-lc test             compile and run the local checks
+lc new two-sum      pull the statement, open it on LeetCode, start recording
+lc save             save the solution copied from LeetCode's editor
 lc finish           stop recording, compress, commit, push
 ```
 

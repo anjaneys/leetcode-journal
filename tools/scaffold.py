@@ -1,23 +1,27 @@
-"""Creating a problem folder: statement, solution stubs, and local tests.
+"""Creating a problem folder and turning code into solution files.
 
-The interesting part is example extraction. LeetCode statements embed their
-examples as plain text like:
+The normal flow solves on leetcode.com: `lc new` only records the problem's
+metadata, and the solution file is written when the code comes back from
+LeetCode's editor via `lc save`.
+
+`lc new --stubs` is the local-editing alternative. It writes LeetCode's
+starter code plus a test file whose cases are parsed from the examples in
+the statement, e.g.
 
     Input: nums = [2,7,11,15], target = 9
     Output: [0,1]
 
-Parsing those into real Python literals means `lc test` has something to run
-the moment the folder is created, instead of an empty stub you have to fill
-in by hand. It is best-effort by design: anything it cannot parse becomes a
+That parsing is best-effort by design: anything it cannot parse becomes a
 TODO rather than a crash.
 """
 from __future__ import annotations
 
 import ast
+import json
 import re
 from pathlib import Path
 
-from . import env
+from . import codeimport, env
 
 TEMPLATES = env.REPO / "templates"
 SOLUTIONS = env.REPO / "solutions"
@@ -140,24 +144,37 @@ def _read_template(name: str) -> str:
     return (TEMPLATES / name).read_text(encoding="utf-8")
 
 
-def create(meta: dict, languages: list, force: bool = False) -> Path:
+def _fill(text: str, meta: dict) -> str:
+    for key, val in (("{ID}", meta["id"]), ("{TITLE}", meta["title"]),
+                     ("{DIFFICULTY}", meta["difficulty"]), ("{URL}", meta["url"])):
+        text = text.replace(key, str(val))
+    return text
+
+
+def render_solution(meta: dict, lang: str, code: str, local_driver: bool = False) -> str:
+    """Wrap code in the language's header template. The metadata placeholders
+    are filled before the code goes in, so braces in the code are never
+    mistaken for placeholders."""
+    template = "solution.py.tmpl" if lang == "python" else "solution.cpp.tmpl"
+    text = _fill(_read_template(template), meta).replace("{SNIPPET}", code.rstrip())
+    if lang == "cpp" and local_driver:
+        text = text.rstrip() + "\n\n" + _read_template("cpp_local_driver.tmpl")
+    return text.rstrip() + "\n"
+
+
+def create(meta: dict, languages: list, force: bool = False, stubs: bool = False) -> Path:
     """Build solutions/<id>-<slug>/ and return the path."""
     dest = SOLUTIONS / folder_name(meta)
     dest.mkdir(parents=True, exist_ok=True)
     (dest / "media").mkdir(exist_ok=True)
+    if stubs:
+        _write_stubs(dest, meta, languages, force)
+    (dest / ".meta.json").write_text(json.dumps(meta, indent=2), encoding="utf-8")
+    return dest
 
-    subs = {
-        "{ID}": meta["id"],
-        "{TITLE}": meta["title"],
-        "{DIFFICULTY}": meta["difficulty"],
-        "{URL}": meta["url"],
-    }
 
-    def fill(text: str) -> str:
-        for key, val in subs.items():
-            text = text.replace(key, str(val))
-        return text
-
+def _write_stubs(dest: Path, meta: dict, languages: list, force: bool) -> None:
+    """Local-editing mode: LeetCode's starter code plus example-based tests."""
     py_snippet = meta["snippets"].get("python3") or meta["snippets"].get("python") or ""
     method = guess_method(py_snippet)
 
@@ -166,15 +183,12 @@ def create(meta: dict, languages: list, force: bool = False) -> Path:
         if force or not target.exists():
             body = ensure_python_body(py_snippet) or (
                 "class Solution:\n    def {}(self):\n        pass  # TODO".format(method))
-            target.write_text(
-                fill(_read_template("solution.py.tmpl")).replace("{SNIPPET}", body),
-                encoding="utf-8")
+            target.write_text(render_solution(meta, "python", body), encoding="utf-8")
 
         target = dest / "test_solution.py"
         if force or not target.exists():
-            cases = extract_examples(meta["statement"])
-            text = _read_template("test_solution.py.tmpl")
-            text = fill(text).replace("{CASES}", render_cases(cases))
+            text = _fill(_read_template("test_solution.py.tmpl"), meta)
+            text = text.replace("{CASES}", render_cases(extract_examples(meta["statement"])))
             text = text.replace("{METHOD}", method)
             target.write_text(text, encoding="utf-8")
 
@@ -183,21 +197,14 @@ def create(meta: dict, languages: list, force: bool = False) -> Path:
         if force or not target.exists():
             body = (meta["snippets"].get("cpp") or "").strip() or (
                 "class Solution {\npublic:\n    // TODO\n};")
-            target.write_text(
-                fill(_read_template("solution.cpp.tmpl")).replace("{SNIPPET}", body),
-                encoding="utf-8")
+            target.write_text(render_solution(meta, "cpp", body, local_driver=True),
+                              encoding="utf-8")
 
-    notes = dest / "NOTES.md"
-    if force or not notes.exists():
-        notes.write_text(
-            "# Notes - {} {}\n\n"
-            "## First instinct\n\nTODO\n\n"
-            "## What I got stuck on\n\nTODO\n\n"
-            "## The insight\n\nTODO\n\n"
-            "## If I saw this again\n\nTODO\n".format(meta["id"], meta["title"]),
-            encoding="utf-8")
 
-    (dest / ".meta.json").write_text(
-        __import__("json").dumps(meta, indent=2), encoding="utf-8")
-
-    return dest
+def save_solution(folder: Path, lang: str, code: str) -> Path:
+    """Write code pasted from LeetCode as this problem's solution file."""
+    meta = json.loads((folder / ".meta.json").read_text(encoding="utf-8"))
+    target = folder / codeimport.LANGS[lang]["file"]
+    target.write_text(render_solution(meta, lang, codeimport.normalize(code)),
+                      encoding="utf-8")
+    return target

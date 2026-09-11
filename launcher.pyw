@@ -1,9 +1,10 @@
 """LeetCode Session - the one-click front end for the lc pipeline.
 
-Double-click the shortcut, pick a problem, and it opens the problem in your
-browser and the solution files in VS Code, then starts recording. A small
-timer window stays up with Run tests / Finish & upload / Discard, so a solve
-never needs a terminal.
+Open the shortcut (or press Ctrl+Alt+L), pick a problem, and it opens the
+problem on leetcode.com and starts recording. You solve in LeetCode's own
+editor while a small timer window stays up. When you're done, copy your code
+(Ctrl+A, Ctrl+C in LeetCode's editor) and click Finish & upload: it picks the
+code up from the clipboard, then compresses, commits, and pushes.
 
 Every action shells out to lc.py rather than calling into it, so the GUI and
 the CLI share one code path and cannot drift apart.
@@ -28,7 +29,7 @@ from tkinter import messagebox, simpledialog, ttk
 REPO = Path(__file__).resolve().parent
 sys.path.insert(0, str(REPO))
 
-from tools import env, publish, recorder, workspace  # noqa: E402
+from tools import clipboard, codeimport, env, publish, recorder, writeup  # noqa: E402
 
 # lc.py runs under the console interpreter even though this window runs under
 # pythonw: pythonw has no usable stdout, and lc's output is what the log shows.
@@ -36,6 +37,9 @@ PYTHON = Path(sys.executable).with_name("python.exe")
 if not PYTHON.exists():
     PYTHON = Path(sys.executable)
 NO_WINDOW = getattr(subprocess, "CREATE_NO_WINDOW", 0)
+
+# Where the session window was last dragged to. Per machine, so gitignored.
+PREFS = REPO / ".launcher.json"
 
 ORANGE = "#ffa116"
 RED = "#d93025"
@@ -51,6 +55,35 @@ def fmt_elapsed(seconds: float) -> str:
     return "{}:{:02d}:{:02d}".format(h, m, s) if h else "{:02d}:{:02d}".format(m, s)
 
 
+def load_prefs() -> dict:
+    try:
+        return json.loads(PREFS.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+
+
+def save_prefs(prefs: dict) -> None:
+    try:
+        PREFS.write_text(json.dumps(prefs), encoding="utf-8")
+    except OSError:
+        pass
+
+
+def virtual_screen():
+    """Bounds of the whole desktop across every monitor: x, y, width, height."""
+    metric = ctypes.windll.user32.GetSystemMetrics
+    return metric(76), metric(77), metric(78), metric(79)
+
+
+def parse_position(geometry: str):
+    """'470x336+2075+1056' -> (2075, 1056). Tk writes negatives as '+-12'."""
+    try:
+        _size, x, y = geometry.replace("+", " ").split()
+        return int(x), int(y)
+    except ValueError:
+        return None
+
+
 class App:
     def __init__(self, root: tk.Tk):
         self.root = root
@@ -61,6 +94,10 @@ class App:
         self.buttons = []
         self.logbox = None
         self._pending_log = None
+        self._notes_job = None
+        self._pos_job = None
+        self.notes = None
+        self._notes_baseline = ""
         self.live = None
         self.state = {}
         self.folder = None
@@ -68,6 +105,7 @@ class App:
         root.title("LeetCode Session")
         root.resizable(False, False)
         root.protocol("WM_DELETE_WINDOW", self.on_close)
+        root.bind("<Configure>", self._on_configure)
         self._style()
         icon = REPO / "assets" / "lc.png"
         if icon.exists():
@@ -102,16 +140,18 @@ class App:
                             font=("Segoe UI Semibold", 10))
 
     def _clear(self):
+        self._flush_notes()
         for child in self.root.winfo_children():
             child.destroy()
         self.buttons = []
         self.logbox = None
         self._pending_log = None
+        self.notes = None
         self.gen += 1
 
     def _make_log(self, parent, height: int, lazy: bool = False):
         """lazy=True keeps the box hidden until the first line arrives, so an
-        idle start screen is not dominated by an empty grey panel."""
+        idle window is not dominated by an empty grey panel."""
         box = tk.Text(parent, height=height, width=60, font=("Consolas", 9),
                       relief="flat", background="#f4f4f4", foreground="#333333",
                       wrap="word", state="disabled", borderwidth=0, padx=8, pady=6)
@@ -134,13 +174,40 @@ class App:
         self.root.geometry("+{}+{}".format(x, y))
 
     def _dock(self):
-        """Tuck the session window into the bottom-right corner, out of the way
-        of the code - it is visible in the screen recording."""
+        """Place the session window where it was last dragged to, or the
+        bottom-right corner the first time. It sits over LeetCode's page and
+        shows in the recording, so where it lives is the user's call."""
         self.root.update_idletasks()
         w, h = self.root.winfo_reqwidth(), self.root.winfo_reqheight()
-        x = self.root.winfo_screenwidth() - w - 24
-        y = self.root.winfo_screenheight() - h - 80
+        vx, vy, vw, vh = virtual_screen()
+        saved = load_prefs().get("session_pos")
+        if (isinstance(saved, list) and len(saved) == 2
+                and vx <= saved[0] <= vx + vw - 100 and vy <= saved[1] <= vy + vh - 100):
+            x, y = saved
+            y = max(vy, min(y, vy + vh - h - 60))  # keep the bottom on screen
+        else:
+            x = self.root.winfo_screenwidth() - w - 24
+            y = self.root.winfo_screenheight() - h - 80
         self.root.geometry("+{}+{}".format(x, y))
+
+    def _on_configure(self, event):
+        # Toplevel bindings also fire for every child widget; only the window
+        # itself moving matters here.
+        if event.widget is not self.root or self.view != "session":
+            return
+        if self._pos_job:
+            self.root.after_cancel(self._pos_job)
+        self._pos_job = self.root.after(500, self._save_position)
+
+    def _save_position(self):
+        self._pos_job = None
+        if self.view != "session":
+            return
+        position = parse_position(self.root.geometry())
+        if position:
+            prefs = load_prefs()
+            prefs["session_pos"] = list(position)
+            save_prefs(prefs)
 
     def _bring_to_front(self):
         """Land on top with keyboard focus when launched.
@@ -226,6 +293,8 @@ class App:
         if self._pending_log is self.logbox:
             self.logbox.pack(fill="both", expand=True, pady=(12, 0))
             self._pending_log = None
+            if self.view == "session":
+                self._dock()  # it just grew; keep the bottom on screen
         self.logbox.configure(state="normal")
         self.logbox.insert("end", text + "\n")
         self.logbox.see("end")
@@ -247,10 +316,7 @@ class App:
         self.entry = ttk.Entry(f, width=52, font=("Segoe UI", 10))
         self.entry.pack(fill="x")
         self.entry.bind("<Return>", lambda _e: self.start())
-        try:
-            clip = self.root.clipboard_get().strip()
-        except tk.TclError:
-            clip = ""
+        clip = clipboard.read_text().strip()
         if "leetcode.com/problems/" in clip and len(clip) < 300:
             self.entry.insert(0, clip)
         self.entry.focus_set()
@@ -352,34 +418,47 @@ class App:
 
         row = ttk.Frame(f)
         row.pack(fill="x", pady=(4, 0))
-        tests = ttk.Button(row, text="Run tests", command=self.run_tests)
+        save = ttk.Button(row, text="Save code", command=self.save_code)
         finish = ttk.Button(row, text="Finish & upload", style="Primary.TButton",
                             command=self.finish)
         discard = ttk.Button(row, text="Discard", command=self.discard)
-        tests.pack(side="left")
+        save.pack(side="left")
         finish.pack(side="left", padx=6)
         discard.pack(side="right")
-        self.buttons = [tests, finish, discard]
+        self.buttons = [save, finish, discard]
         if not recording:
             record = ttk.Button(row, text="Start recording", command=self.start_recording)
             record.pack(side="left")
             self.buttons.append(record)
 
+        self.code_status = ttk.Label(f, text="", style="Muted.TLabel",
+                                     wraplength=430, justify="left")
+        self.code_status.pack(anchor="w", pady=(8, 0))
+
         links = ttk.Frame(f)
-        links.pack(fill="x", pady=(10, 0))
-        self._link(links, "Problem", lambda: workspace.open_problem(meta.get("url")))
-        self._link(links, "Code", lambda: workspace.open_editor(env.load_config(), self.folder))
+        links.pack(fill="x", pady=(8, 0))
+        self._link(links, "Problem", lambda: webbrowser.open(meta.get("url") or ""))
         self._link(links, "Folder", lambda: os.startfile(str(self.folder)))
         self.pin = tk.BooleanVar(value=True)
         ttk.Checkbutton(links, text="Keep on top", variable=self.pin,
                         command=self._apply_pin).pack(side="right")
 
-        self.test_status = ttk.Label(f, text="", style="Muted.TLabel")
-        self.test_status.pack(anchor="w", pady=(6, 0))
+        ttk.Label(f, text="Notes (optional): your approach, complexity, what tripped you up",
+                  style="Muted.TLabel").pack(anchor="w", pady=(10, 3))
+        self.notes = tk.Text(f, height=4, width=56, font=("Segoe UI", 9), wrap="word",
+                             relief="solid", borderwidth=1, padx=6, pady=4)
+        self.notes.pack(fill="x")
+        existing = writeup.notes_body(self.folder)
+        self._notes_baseline = existing
+        if existing:
+            self.notes.insert("1.0", existing)
+        self.notes.edit_modified(False)
+        self.notes.bind("<<Modified>>", self._notes_changed)
 
-        self.logbox = self._make_log(f, height=6)
+        self.logbox = self._make_log(f, height=5, lazy=True)
         self._apply_pin()
         self._paint_rec()
+        self._paint_code_status()
         self._dock()
         self._tick(self.gen)
         self._poll_live(self.gen)
@@ -428,39 +507,134 @@ class App:
         else:
             self.rec.configure(text="● REC", style="Rec.TLabel")
 
+    def _paint_code_status(self):
+        if self.view != "session":
+            return
+        langs = codeimport.saved_languages(self.folder)
+        if langs:
+            names = " + ".join(codeimport.LANGS[lang]["label"] for lang in langs)
+            self.code_status.configure(text="{} code saved ✓".format(names),
+                                       style="Pass.TLabel")
+        else:
+            self.code_status.configure(
+                text="Code not saved yet. When you're done, press Ctrl+A then "
+                     "Ctrl+C in LeetCode's editor.", style="Muted.TLabel")
+
+    # ------------------------------------------------------------- notes
+
+    def _notes_changed(self, _event=None):
+        if self.notes is None or not self.notes.edit_modified():
+            return
+        self.notes.edit_modified(False)
+        if self._notes_job:
+            self.root.after_cancel(self._notes_job)
+        self._notes_job = self.root.after(800, self._save_notes)
+
+    def _flush_notes(self):
+        if self._notes_job:
+            self.root.after_cancel(self._notes_job)
+        self._save_notes()
+
+    def _save_notes(self):
+        """Autosave the notes box to NOTES.md; an empty box means no file."""
+        self._notes_job = None
+        if self.notes is None or not self.folder or not self.folder.exists():
+            return
+        try:
+            text = self.notes.get("1.0", "end").strip()
+        except tk.TclError:
+            return
+        if text == self._notes_baseline:
+            return  # untouched since loaded - never clobber an edit made elsewhere
+        self._notes_baseline = text
+        path = self.folder / "NOTES.md"
+        if text:
+            meta = self._meta()
+            heading = "# Notes - {}. {}".format(
+                (meta.get("id") or "").lstrip("0") or "?", meta.get("title") or self.folder.name)
+            content = heading + "\n\n" + text + "\n"
+            if not path.exists() or path.read_text(encoding="utf-8") != content:
+                path.write_text(content, encoding="utf-8")
+        elif path.exists():
+            path.unlink()
+
+    # ----------------------------------------------------------- actions
+
     def start_recording(self):
         self.run_lc(["start"], done=lambda _c, output: self.show_session())
 
-    def run_tests(self):
-        self.test_status.configure(text="Running tests...", style="Muted.TLabel")
-        self.run_lc(["test"], done=self._tests_done)
+    def save_code(self, then=None):
+        self.run_lc(["save"], done=lambda code, output: self._code_saved(code, output, then))
 
-    def _tests_done(self, code, _output):
-        if code == 0:
-            self.test_status.configure(text="All tests passed", style="Pass.TLabel")
-        else:
-            self.test_status.configure(text="Tests failed - see the log", style="Fail.TLabel")
+    def _code_saved(self, code, output, then):
+        self._paint_code_status()
+        if code != 0:
+            reason = output.strip().splitlines()[-1] if output.strip() else codeimport.NOT_CODE
+            messagebox.showinfo("Nothing saved", reason, parent=self.root)
+            return
+        if then:
+            then()
 
     def finish(self):
-        if publish.has_remote():
-            message = "Stop recording, compress the videos, and push everything to GitHub?"
-        else:
-            message = ("Stop recording, compress the videos, and commit?\n\n"
-                       "No GitHub repo is linked yet, so this stays on your PC "
-                       "until you link one.")
-        if not messagebox.askyesno("Finish & upload", message, parent=self.root):
+        self._flush_notes()
+        where = ("push everything to GitHub" if publish.has_remote()
+                 else "commit it on this PC (no GitHub repo linked yet)")
+        clip = clipboard.read_text()
+        lang, _reason = codeimport.detect(clip)
+        unsaved = bool(lang) and not codeimport.is_saved(self.folder, lang, clip)
+        have_code = bool(codeimport.saved_languages(self.folder))
+
+        if unsaved:
+            answer = messagebox.askyesnocancel(
+                "Finish & upload",
+                "Your clipboard has {} code that hasn't been saved yet.\n\n"
+                "Yes - save it, then stop recording and {}\n"
+                "No - finish without it\n"
+                "Cancel - keep working".format(codeimport.LANGS[lang]["label"], where),
+                parent=self.root)
+            if answer is None:
+                return
+            if answer:
+                self.save_code(then=self._finish_now)
+                return
+            if not have_code and not self._confirm_no_code():
+                return
+            self._finish_now(no_code=not have_code)
             return
+
+        if not have_code:
+            if self._confirm_no_code():
+                self._finish_now(no_code=True)
+            return
+
+        if messagebox.askyesno("Finish & upload",
+                               "Stop recording, compress the videos, and {}?".format(where),
+                               parent=self.root):
+            self._finish_now()
+
+    def _confirm_no_code(self) -> bool:
+        return messagebox.askyesno(
+            "No code saved",
+            "You haven't saved your solution.\n\n"
+            "In LeetCode's editor press Ctrl+A then Ctrl+C, and click Finish "
+            "again - it will pick the code up.\n\n"
+            "Publish the recording without any code?",
+            icon="warning", parent=self.root)
+
+    def _finish_now(self, no_code: bool = False):
         self.finished_folder = self.folder.name
-        self.test_status.configure(text="Compressing and publishing - this can take "
-                                        "a minute for a long solve.", style="Muted.TLabel")
-        self.run_lc(["finish"], done=self._finished)
+        self.code_status.configure(
+            text="Compressing and publishing - this can take a minute for a long solve.",
+            style="Muted.TLabel")
+        self.run_lc(["finish"] + (["--no-code"] if no_code else []), done=self._finished)
 
     def _finished(self, code, output):
         if code != 0:
+            tail = "\n".join(output.strip().splitlines()[-4:])
             messagebox.showerror(
                 "Finish failed",
-                "Something went wrong - the details are in the log.\n\n"
-                "The raw recording on D: is untouched.", parent=self.root)
+                tail + "\n\nThe raw recording on D: is untouched.", parent=self.root)
+            self._paint_code_status()
             return
         cfg = env.load_config()
         repo = (cfg.get("github") or {}).get("repo")
@@ -484,7 +658,7 @@ class App:
         if not messagebox.askyesno(
                 "Discard session",
                 "Stop recording and delete the raw video?\n\n"
-                "Your code in solutions/{} is kept.".format(self.folder.name),
+                "Anything saved in solutions/{} is kept.".format(self.folder.name),
                 parent=self.root):
             return
         self.run_lc(["cancel"], done=lambda _c, output: self.show_start(carry=output))
@@ -505,6 +679,7 @@ class App:
                     "background.\n\nOpen LeetCode Session again to finish or "
                     "discard it.", parent=self.root):
                 return
+        self._flush_notes()
         self.root.destroy()
 
 

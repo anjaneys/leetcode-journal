@@ -22,3 +22,6 @@ Thumbs.db
 
 # Launcher crash log
 launcher-error.log
+
+# Launcher window position (per machine)
+.launcher.json

@@ -9,16 +9,25 @@ Open **LeetCode Session** from the desktop, the Start Menu, or with
 
 1. Paste a problem URL (it pre-fills if one is already on your clipboard),
    type a slug or title, or press **Today's daily**.
-2. **Start** opens the problem in your browser and the solution files in
-   VS Code, and starts recording.
-3. A small timer window docks in the bottom-right corner with
-   **Run tests**, **Finish & upload**, and **Discard**.
-4. **Finish & upload** stops the recording, compresses it, commits, pushes,
-   and offers to open the result on GitHub.
+2. **Start** opens the problem on leetcode.com and starts recording.
+3. Solve it in LeetCode's own editor as usual. A small timer window starts in
+   the bottom-right corner; drag it wherever it is out of the way and it
+   remembers the spot.
+4. When you're done, click into LeetCode's editor, press **Ctrl+A** then
+   **Ctrl+C**, and click **Finish & upload**. It notices the code on your
+   clipboard and saves it as `solution.py` or `solution.cpp` (the language is
+   detected). Then it stops recording, compresses, commits, and pushes.
 
-The timer window shows up in the screen recording, which is why it is small
-and docked in a corner. Untick **Keep on top** to let it sit behind your
-editor, or minimise it.
+**Save code** does just the clipboard step, for saving partway through;
+saving again overwrites. Finishing with nothing saved warns you rather than
+publishing a solve with no code.
+
+The **Notes** box is optional: approach, complexity, what tripped you up. It
+autosaves to `NOTES.md` and appears on the problem's GitHub page. Leave it
+empty and no notes file is created.
+
+The timer window shows up in the screen recording, which is why it is small.
+Untick **Keep on top** to let it sit behind the browser, or minimise it.
 
 If you close the window mid-solve, the recording keeps running. Reopening
 LeetCode Session picks the session back up. Closing is blocked while it is
@@ -33,10 +42,18 @@ drop the hotkey.
 ## The loop
 
 ```bash
-lc new two-sum      # fetch the statement, scaffold the folder, start recording
-lc test             # run the Python and C++ checks
-lc finish           # stop recording, compress, write the README, commit, push
+lc new two-sum --open   # fetch the statement, open it on leetcode.com, start recording
+lc save                 # save the solution on your clipboard (copied from LeetCode)
+lc finish               # stop recording, compress, write the README, commit, push
 ```
+
+`lc save` detects Python vs C++ itself; `--lang` overrides that, and `--file`
+reads from a file instead of the clipboard. `lc finish` refuses to publish
+with no saved code unless you pass `--no-code`.
+
+Prefer writing code locally? `lc new two-sum --stubs` writes LeetCode's
+starter code plus tests generated from the problem's examples, and `lc test`
+runs them.
 
 `lc new` accepts a slug, a title, or a full URL — `lc new "https://leetcode.com/problems/two-sum/"`
 and `lc new "Two Sum"` both work.
@@ -61,11 +78,10 @@ Other commands:
 
 ```
 solutions/0001-two-sum/
-├── README.md          generated: statement, video thumbnails, links
-├── NOTES.md           yours: what you got stuck on
-├── solution.py        LeetCode's stub, with a body so it imports
-├── solution.cpp       LeetCode's stub, plus a main() test driver
-├── test_solution.py   generated from the examples in the statement
+├── README.md          generated: statement, videos, your code and notes
+├── NOTES.md           from the Notes box (only if you wrote any)
+├── solution.py        your code, pasted from LeetCode
+├── solution.cpp       ...whichever language(s) you saved
 ├── media/
 │   ├── screen.mp4     compressed, narration muxed in   (Git LFS)
 │   ├── camera.mp4     compressed webcam + mic          (Git LFS)

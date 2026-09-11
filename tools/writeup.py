@@ -12,7 +12,7 @@ import json
 from datetime import date
 from pathlib import Path
 
-from . import env, postprocess
+from . import env, postprocess, scaffold
 
 SOLUTIONS = env.REPO / "solutions"
 
@@ -83,21 +83,54 @@ def problem_readme(folder: Path) -> str:
 
     lines += ["## Walkthrough", "", _media_table(folder, record.get("media", {})), ""]
 
-    langs = []
-    if (folder / "solution.py").exists():
-        langs.append("[Python](solution.py)")
-    if (folder / "solution.cpp").exists():
-        langs.append("[C++](solution.cpp)")
-    if langs:
-        lines += ["## Solution", "", " &middot; ".join(langs), ""]
-    if (folder / "NOTES.md").exists():
-        lines += ["My working notes: [NOTES.md](NOTES.md)", ""]
+    notes = notes_body(folder)
+    if notes:
+        lines += ["## Notes", "", notes, ""]
+
+    # The code goes inline so the problem page reads on its own, with a link
+    # to the file for copying.
+    blocks = []
+    for name, label, fence in (("solution.py", "Python", "python"),
+                               ("solution.cpp", "C++", "cpp")):
+        path = folder / name
+        if path.exists():
+            code = _without_header(path.read_text(encoding="utf-8"), meta, fence)
+            blocks += ["### {} <sub>[{}]({})</sub>".format(label, name, name), "",
+                       "```" + fence, code, "```", ""]
+    if blocks:
+        lines += ["## Solution", ""] + blocks
 
     lines += ["## Problem", "", meta.get("statement", "_Statement unavailable._"), ""]
     lines += ["---", "",
               "<sub>Recorded and published with the "
               "[leetcode-journal](../../README.md) setup.</sub>", ""]
     return "\n".join(lines)
+
+
+def _without_header(text: str, meta: dict, lang: str) -> str:
+    """Drop the title/import header scaffold wraps around the code, since the
+    README already shows the title. Files in any other shape are shown whole."""
+    text = text.replace("\r\n", "\n").rstrip()
+    try:
+        header = scaffold.render_solution(meta, lang, "").rstrip()
+    except (KeyError, OSError):
+        return text
+    if header and text.startswith(header):
+        return text[len(header):].strip("\n")
+    return text
+
+
+def notes_body(folder: Path) -> str:
+    """NOTES.md minus its heading, or '' when there are no notes."""
+    path = folder / "NOTES.md"
+    if not path.exists():
+        return ""
+    # utf-8-sig: Notepad and PowerShell can prepend a BOM, which would hide
+    # the heading from the check below.
+    lines = path.read_text(encoding="utf-8-sig").strip().splitlines()
+    if lines and lines[0].startswith("# "):
+        lines = lines[1:]
+    return "\n".join(lines).strip()
 
 
 def _load_record(folder: Path) -> dict:
@@ -191,8 +224,8 @@ def rebuild_index(cfg: dict) -> Path:
         "Underneath it is a small CLI:",
         "",
         "```",
-        "lc new two-sum      scaffold the folder, pull the statement, start recording",
-        "lc test             compile and run the local checks",
+        "lc new two-sum      pull the statement, open it on LeetCode, start recording",
+        "lc save             save the solution copied from LeetCode's editor",
         "lc finish           stop recording, compress, commit, push",
         "```",
         "",

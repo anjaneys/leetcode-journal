@@ -16,7 +16,19 @@ from . import env
 def run_python(folder: Path, log=print) -> bool | None:
     test = folder / "test_solution.py"
     if not test.exists():
-        return None
+        # Code pasted from LeetCode comes without local tests; LeetCode already
+        # ran them, so just confirm the file is valid Python.
+        src = folder / "solution.py"
+        if not src.exists():
+            return None
+        log("Python")
+        try:
+            compile(src.read_text(encoding="utf-8"), str(src), "exec")
+        except SyntaxError as exc:
+            log("  syntax error: {}".format(exc))
+            return False
+        log("  parses (no local tests - LeetCode ran them)")
+        return True
     log("Python")
     result = subprocess.run(
         [sys.executable, str(test)],
@@ -37,6 +49,17 @@ def run_cpp(folder: Path, log=print) -> bool | None:
         return None
 
     log("C++")
+    if "int main" not in src.read_text(encoding="utf-8", errors="replace"):
+        # Pasted from LeetCode, so there is no driver to run; confirm it compiles.
+        result = subprocess.run([gxx, "-std=c++20", "-fsyntax-only", str(src)],
+                                capture_output=True, text=True)
+        if result.returncode != 0:
+            log("  does not compile:")
+            for line in result.stderr.rstrip().splitlines()[:25]:
+                log("    " + line)
+            return False
+        log("  compiles (no local tests - LeetCode ran them)")
+        return True
     binary = folder / "solution_test.exe"
     compile_result = subprocess.run(
         [gxx, "-std=c++20", "-O2", "-DLOCAL_TEST", str(src), "-o", str(binary)],

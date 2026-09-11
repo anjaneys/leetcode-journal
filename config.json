@@ -59,5 +59,6 @@
   "publish": {
     "auto_push": true,
     "keep_raw": true
-  }
+  },
+  "open_editor": false
 }

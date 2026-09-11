@@ -2,7 +2,7 @@
 
     lc new two-sum        scaffold the folder, fetch the statement, start recording
     lc status             is anything recording right now?
-    lc test               run the local Python and C++ checks
+    lc save               save the solution you copied from LeetCode's editor
     lc finish             stop recording, compress, commit, push
     lc doctor             check the toolchain
 """
@@ -17,8 +17,8 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from tools import (env, leetcode, postprocess, publish, recorder, runner,
-                   scaffold, workspace, writeup)
+from tools import (clipboard, codeimport, env, leetcode, postprocess, publish,
+                   recorder, runner, scaffold, workspace, writeup)
 
 
 def log(msg=""):
@@ -58,7 +58,7 @@ def cmd_new(args) -> int:
     else:
         log("  {} {}  [{}]".format(meta["id"], meta["title"], meta["difficulty"]))
 
-    folder = scaffold.create(meta, cfg["languages"], force=args.force)
+    folder = scaffold.create(meta, cfg["languages"], force=args.force, stubs=args.stubs)
     log("  created solutions/{}/".format(folder.name))
     for f in sorted(folder.iterdir()):
         if f.is_file() and not f.name.startswith("."):
@@ -66,10 +66,11 @@ def cmd_new(args) -> int:
 
     if args.open:
         workspace.open_problem(meta["url"])
-        if workspace.open_editor(cfg, folder):
-            log("  opened the problem in your browser and the code in your editor")
-        else:
-            log("  opened the problem in your browser (editor not found)")
+        log("  opened the problem in your browser")
+        # Solving happens in LeetCode's own editor, so a local editor is only
+        # worth opening when there are local stubs to edit.
+        if (args.stubs or cfg.get("open_editor")) and workspace.open_editor(cfg, folder):
+            log("  opened the code in your editor")
 
     if args.no_record:
         log("\nRecording skipped (--no-record). Start it later with 'lc start'.")
@@ -84,7 +85,8 @@ def cmd_new(args) -> int:
     env.save_state(rec)
     log("  screen  -> {}".format(Path(rec["screen_file"]).name if rec["screen_file"] else "OBS"))
     log("  camera  -> {}".format(Path(rec["camera_file"]).name if rec["camera_file"] else "off"))
-    log("\nGo solve it. When you are done:  lc finish")
+    log("\nSolve it on LeetCode. When you're done, copy your code from LeetCode's")
+    log("editor (Ctrl+A, Ctrl+C) and run:  lc save   then:  lc finish")
     return 0
 
 
@@ -161,6 +163,15 @@ def cmd_finish(args) -> int:
         return 1
     folder = Path(state["folder"])
 
+    # Checked before anything stops: a solve published without its code is
+    # almost always a forgotten `lc save`, and the recording should keep going
+    # while that gets fixed.
+    if not codeimport.saved_languages(folder) and not args.no_code:
+        log("No solution code has been saved for {}.".format(folder.name))
+        log("Copy it from LeetCode's editor (Ctrl+A, Ctrl+C), run 'lc save', then 'lc finish'.")
+        log("To publish just the recording, run 'lc finish --no-code'.")
+        return 1
+
     if any(recorder.status(state).values()):
         rule("Stopping recording")
         state["raw"] = recorder.stop(cfg, state)
@@ -231,6 +242,33 @@ def cmd_finish(args) -> int:
 
     env.clear_state()
     log("\nDone.")
+    return 0
+
+
+def cmd_save(args) -> int:
+    folder = _resolve_folder(args.problem)
+    if not folder:
+        return 1
+    if args.file:
+        code = Path(args.file).read_text(encoding="utf-8")
+    else:
+        code = clipboard.read_text()
+
+    if args.lang:
+        lang = args.lang
+        if not codeimport.normalize(code):
+            log("The clipboard is empty. In LeetCode's editor press Ctrl+A, then Ctrl+C.")
+            return 1
+    else:
+        lang, reason = codeimport.detect(code)
+        if not lang:
+            log(reason)
+            return 1
+
+    path = scaffold.save_solution(folder, lang, code)
+    lines = len(codeimport.normalize(code).splitlines())
+    log("Saved your {} solution ({} lines) to solutions/{}/{}".format(
+        codeimport.LANGS[lang]["label"], lines, folder.name, path.name))
     return 0
 
 
@@ -442,8 +480,9 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("problem", help="slug, title, full LeetCode URL, or 'daily'")
     s.add_argument("--no-record", action="store_true", help="scaffold only")
     s.add_argument("--force", action="store_true", help="overwrite existing files")
-    s.add_argument("--open", action="store_true",
-                   help="open the problem page and the code editor")
+    s.add_argument("--open", action="store_true", help="open the problem on leetcode.com")
+    s.add_argument("--stubs", action="store_true",
+                   help="write local starter code and tests, for solving in an editor")
     s.set_defaults(func=cmd_new)
 
     s = sub.add_parser("start", help="start recording the active problem")
@@ -462,7 +501,15 @@ def build_parser() -> argparse.ArgumentParser:
     s = sub.add_parser("finish", help="stop, compress, commit, and push")
     s.add_argument("-m", "--message", help="custom commit message")
     s.add_argument("--no-push", action="store_true", help="commit but do not push")
+    s.add_argument("--no-code", action="store_true",
+                   help="publish even though no solution code was saved")
     s.set_defaults(func=cmd_finish)
+
+    s = sub.add_parser("save", help="save the solution on your clipboard (copied from LeetCode)")
+    s.add_argument("problem", nargs="?", help="defaults to the active problem")
+    s.add_argument("--lang", choices=sorted(codeimport.LANGS), help="skip language detection")
+    s.add_argument("--file", help="read the code from a file instead of the clipboard")
+    s.set_defaults(func=cmd_save)
 
     s = sub.add_parser("cancel", help="stop recording and throw the session away")
     s.add_argument("--delete-folder", action="store_true",
