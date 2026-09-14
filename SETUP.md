@@ -9,7 +9,8 @@ Open **LeetCode Session** from the desktop, the Start Menu, or with
 
 1. Paste a problem URL (it pre-fills if one is already on your clipboard),
    type a slug or title, or press **Today's daily**.
-2. **Start** opens the problem on leetcode.com and starts recording.
+2. **Start** starts recording. It also opens the problem on leetcode.com,
+   unless you pasted a link - then the page is already open.
 3. Solve it in LeetCode's own editor as usual. A small timer window starts in
    the bottom-right corner; drag it wherever it is out of the way and it
    remembers the spot.

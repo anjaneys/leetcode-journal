@@ -351,7 +351,11 @@ class App:
         if not problem:
             messagebox.showinfo("LeetCode Session", "Enter a problem first.", parent=self.root)
             return
-        args = ["new", problem, "--open"]
+        args = ["new", problem]
+        # A pasted link means the problem is already open in the browser; only
+        # open it for a typed name or Today's daily.
+        if "leetcode.com/" not in problem:
+            args.append("--open")
         if not self.record_var.get():
             args.append("--no-record")
         self.run_lc(args, done=self._started)
