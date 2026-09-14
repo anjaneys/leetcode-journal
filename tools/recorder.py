@@ -19,6 +19,7 @@ fighting over a DirectShow video pin is a guaranteed failure.
 """
 from __future__ import annotations
 
+import ctypes
 import subprocess
 import sys
 import time
@@ -113,7 +114,33 @@ def _alive(pid: int) -> bool:
         return False
 
 
-def _screen_cmd(ffmpeg: str, cfg: dict, out: Path) -> list:
+def screen_region(cfg: dict):
+    """[x, y, width, height] of the area to record, or None for every monitor.
+
+    Defaults to the primary monitor. Windows always puts the primary monitor's
+    top-left corner at (0, 0), however the displays are arranged.
+    """
+    if cfg["recorder"]["screen"].get("monitor", "primary") != "primary":
+        return None
+    try:
+        # Physical pixels even under display scaling - that is what gdigrab grabs.
+        ctypes.windll.shcore.SetProcessDpiAwareness(1)
+    except (AttributeError, OSError):
+        pass
+    width = ctypes.windll.user32.GetSystemMetrics(0)
+    height = ctypes.windll.user32.GetSystemMetrics(1)
+    return [0, 0, width - width % 2, height - height % 2]  # x264 needs even sizes
+
+
+def _region_args(region) -> list:
+    if not region:
+        return []
+    x, y, width, height = region
+    return ["-offset_x", str(x), "-offset_y", str(y),
+            "-video_size", "{}x{}".format(width, height)]
+
+
+def _screen_cmd(ffmpeg: str, cfg: dict, out: Path, region=None) -> list:
     """Screen capture, video only.
 
     The microphone is deliberately NOT opened here. Two processes opening the
@@ -131,6 +158,7 @@ def _screen_cmd(ffmpeg: str, cfg: dict, out: Path) -> list:
         "-f", "gdigrab",
         "-framerate", str(r["framerate"]),
         "-draw_mouse", "1" if r.get("capture_cursor", True) else "0",
+    ] + _region_args(region) + [
         "-i", "desktop",
         # ultrafast + a mid CRF keeps CPU free for you to actually think; the
         # file is recompressed properly later.
@@ -231,6 +259,9 @@ def start(cfg: dict, slug: str) -> dict:
         "screen_file": "",
         "camera_file": "",
         "obs_recording": False,
+        # Fixed for the life of the session, so every segment after a resume
+        # has the same size and the pieces can be joined without re-encoding.
+        "screen_region": screen_region(cfg),
     }
 
     _start_captures(cfg, state, ffmpeg, session_dir)
@@ -288,8 +319,11 @@ def _start_captures(cfg: dict, state: dict, ffmpeg: str, session_dir: Path,
             state["obs_recording"] = True
         else:
             out = session_dir / "screen{}.mkv".format(suffix)
+            # Sessions from before monitor selection have no screen_region and
+            # keep recording the whole desktop they started with.
             state["screen_pid"] = _spawn(
-                _screen_cmd(ffmpeg, cfg, out), session_dir, "screen")
+                _screen_cmd(ffmpeg, cfg, out, state.get("screen_region")),
+                session_dir, "screen")
             state["screen_file"] = str(out)
 
     if cfg["recorder"]["camera"]["enabled"]:

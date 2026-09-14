@@ -111,7 +111,8 @@ set `publish.keep_raw` to `false` to delete each one after a successful
 
 Two separate ffmpeg processes run per session:
 
-- **screen** — `gdigrab` over the whole desktop, **video only**
+- **screen** — `gdigrab` over the primary monitor, **video only**. Set
+  `recorder.screen.monitor` to `"all"` in `config.json` to record every monitor.
 - **camera** — `dshow` webcam, carrying the **microphone** as its audio track
 
 The mic is opened exactly once. Two processes opening the same DirectShow
@@ -147,7 +148,7 @@ Set per-stream under `encode` in `config.json`:
 
 | Knob | Screen | Camera | Effect |
 |---|--:|--:|---|
-| `scale_width` | 2560 | 640 | Biggest lever. 2560 keeps code readable on a 4480px ultrawide |
+| `scale_width` | 1920 | 640 | Biggest lever. 1920 keeps code readable from a 2560×1440 monitor |
 | `fps` | 12 | 24 | Nobody needs 60fps of a text editor |
 | `crf` | 30 | 32 | Higher is smaller; cheap on low-motion content |
 

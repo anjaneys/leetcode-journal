@@ -20,7 +20,8 @@
       "framerate": 15,
       "capture_cursor": true,
       "borrow_camera_audio": true,
-      "capture_crf": 26
+      "capture_crf": 26,
+      "monitor": "primary"
     },
     "camera": {
       "enabled": true,
@@ -43,7 +44,7 @@
     "screen": {
       "crf": 30,
       "preset": "veryfast",
-      "scale_width": 2560,
+      "scale_width": 1920,
       "fps": 12,
       "audio_kbps": 64
     },
