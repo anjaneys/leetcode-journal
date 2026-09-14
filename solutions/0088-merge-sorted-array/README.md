@@ -6,28 +6,27 @@
 
 ## Walkthrough
 
-_No recording attached to this solve._
+| Screen recording | Camera |
+|:--:|:--:|
+| [<img src="media/screen.jpg" width="380">](media/screen.mp4)<br><sub>18m 32s &middot; 15 MB</sub> | [<img src="media/camera.jpg" width="380">](media/camera.mp4)<br><sub>18m 29s &middot; 14 MB</sub> |
 
 ## Notes
 
 class Solution {
 public:
     void merge(vector<int>& nums1, int m, vector<int>& nums2, int n) {
-        for(int i = 0; i < m + n; i++){
-                if (i < nums1[i-1]){
-                    nums1[i-1] = nums1[i];
-                    nums1[i] = nums1[i-1];
-                }
-
-                for(int j = 0; j < n; j++){
-                    if(nums2[j] < nums1[j-1]){
-                        nums1[j-1] = nums2[j];
-                        nums1[j] = nums1[j-1];
-                    }
-             }
+        nums1.resize(m);
+        for(int i = 0; i < n; i++){
+            nums1.push_back(nums2[i]);
         }
-        for(int k = 0; k < m + n; k++){
-            cout << nums1[k];
+        for(int i = 0; i < (m + n) -1; i++){
+            for(int j = 1; j < (m + n) - i; j++){
+                if(nums1[j] < nums1[j - 1]){
+                    int tmp = nums1[j];
+                    nums1[j] = nums1[j - 1];
+                    nums1[j - 1] = tmp;
+                }
+            }
         }
     }
 };
@@ -40,21 +39,18 @@ public:
 class Solution {
 public:
     void merge(vector<int>& nums1, int m, vector<int>& nums2, int n) {
-        for(int i = 0; i < m + n; i++){
-                if (i < nums1[i-1]){
-                    nums1[i-1] = nums1[i];
-                    nums1[i] = nums1[i-1];
-                }
-
-                for(int j = 0; j < n; j++){
-                    if(nums2[j] < nums1[j-1]){
-                        nums1[j-1] = nums2[j];
-                        nums1[j] = nums1[j-1];
-                    }
-             }
+        nums1.resize(m);
+        for(int i = 0; i < n; i++){
+            nums1.push_back(nums2[i]);
         }
-        for(int k = 0; k < m + n; k++){
-            cout << nums1[k];
+        for(int i = 0; i < (m + n) -1; i++){
+            for(int j = 1; j < (m + n) - i; j++){
+                if(nums1[j] < nums1[j - 1]){
+                    int tmp = nums1[j];
+                    nums1[j] = nums1[j - 1];
+                    nums1[j - 1] = tmp;
+                }
+            }
         }
     }
 };

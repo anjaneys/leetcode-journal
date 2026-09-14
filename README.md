@@ -6,7 +6,7 @@ Every problem I solve, recorded start to finish: the screen, the camera, the cod
 
 | # | Problem | Difficulty | Lang | Recording | Date |
 |--:|---------|------------|------|-----------|------|
-| 0088 | [Merge Sorted Array](solutions/0088-merge-sorted-array/) | Easy | C++ | - | 2026-09-13 |
+| 0088 | [Merge Sorted Array](solutions/0088-merge-sorted-array/) | Easy | C++ | [screen](solutions/0088-merge-sorted-array/media/screen.mp4) [cam](solutions/0088-merge-sorted-array/media/camera.mp4) | 2026-09-13 |
 
 ## How this repo is produced
 
