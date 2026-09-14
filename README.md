@@ -2,9 +2,11 @@
 
 Every problem I solve, recorded start to finish: the screen, the camera, the code, and what I was actually thinking.
 
-**0** solved &nbsp;&middot;&nbsp; 0 Easy &nbsp;&middot;&nbsp; 0 Medium &nbsp;&middot;&nbsp; 0 Hard
+**1** solved &nbsp;&middot;&nbsp; 1 Easy &nbsp;&middot;&nbsp; 0 Medium &nbsp;&middot;&nbsp; 0 Hard
 
-_Nothing solved yet. Run `lc new <problem>` to start._
+| # | Problem | Difficulty | Lang | Recording | Date |
+|--:|---------|------------|------|-----------|------|
+| 0088 | [Merge Sorted Array](solutions/0088-merge-sorted-array/) | Easy | C++ | [screen](solutions/0088-merge-sorted-array/media/screen.mp4) [cam](solutions/0088-merge-sorted-array/media/camera.mp4) | 2026-09-13 |
 
 ## How this repo is produced
 
@@ -20,3 +22,5 @@ Recordings are compressed with ffmpeg and stored via Git LFS. Click any
 thumbnail to play the video on GitHub.
 
 Full setup notes are in [SETUP.md](SETUP.md).
+
+<sub>github.com/anjaneys/leetcode-journal</sub>
