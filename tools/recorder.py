@@ -41,9 +41,18 @@ def raw_root(cfg: dict) -> Path:
 
 
 def _creationflags() -> int:
-    # The supervisor outlives this command, so detach it and keep it silent.
+    # The supervisor outlives this command, so it must not share its console,
+    # and it must not open a window either.
+    #
+    # CREATE_NO_WINDOW alone does both: the supervisor gets its own *hidden*
+    # console, so closing the terminal that ran `lc` cannot take the recording
+    # down with it. DETACHED_PROCESS looks like the obvious choice but is wrong
+    # here: the venv's python.exe is a small redirector that re-launches the
+    # real interpreter as a child, and a detached redirector's child has no
+    # console to inherit - so Windows opens a visible terminal window for it,
+    # which stays on screen for the entire recording.
     if sys.platform == "win32":
-        return subprocess.DETACHED_PROCESS | subprocess.CREATE_NO_WINDOW
+        return subprocess.CREATE_NO_WINDOW
     return 0
 
 
@@ -97,7 +106,7 @@ def _alive(pid: int) -> bool:
         out = subprocess.run(
             ["tasklist", "/FI", "PID eq {}".format(pid),
              "/FI", "IMAGENAME eq ffmpeg.exe", "/NH", "/FO", "CSV"],
-            capture_output=True, text=True, timeout=10,
+            capture_output=True, creationflags=env.NO_WINDOW, text=True, timeout=10,
         ).stdout
         return "ffmpeg.exe" in out and str(pid) in out
     except (subprocess.SubprocessError, OSError):
@@ -281,7 +290,7 @@ def stop(cfg: dict, state: dict) -> dict:
             time.sleep(0.2)
         if _alive(pid):
             subprocess.run(["taskkill", "/PID", str(pid), "/F"],
-                           capture_output=True, timeout=15)
+                           capture_output=True, creationflags=env.NO_WINDOW, timeout=15)
             time.sleep(0.5)
         if path and Path(path).exists():
             results[kind] = path

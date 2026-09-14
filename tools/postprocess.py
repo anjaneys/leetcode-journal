@@ -28,7 +28,7 @@ def probe(path: Path) -> dict:
         out = subprocess.run(
             [ffprobe, "-v", "error", "-show_entries",
              "format=duration,size", "-of", "json", str(path)],
-            capture_output=True, text=True, timeout=60,
+            capture_output=True, creationflags=env.NO_WINDOW, text=True, timeout=60,
         ).stdout
         fmt = json.loads(out).get("format", {})
         return {
@@ -106,7 +106,7 @@ def compress(src: Path, dest: Path, profile: dict, log=print,
             # inline instead of downloading the whole file before playback.
             "-movflags", "+faststart",
             str(dest)]
-    result = subprocess.run(cmd, capture_output=True, text=True)
+    result = subprocess.run(cmd, capture_output=True, creationflags=env.NO_WINDOW, text=True)
     if result.returncode != 0 or not dest.exists():
         log("  ! compression failed for {}".format(src.name))
         tail = (result.stderr or "").strip().splitlines()[-4:]
@@ -128,5 +128,5 @@ def poster(src: Path, dest: Path, at_seconds: float = 3.0) -> bool:
         "-frames:v", "1", "-vf", "scale=640:-2", "-q:v", "4",
         str(dest),
     ]
-    subprocess.run(cmd, capture_output=True)
+    subprocess.run(cmd, capture_output=True, creationflags=env.NO_WINDOW)
     return Path(dest).exists()

@@ -24,6 +24,7 @@ def git(*args, check: bool = True, capture: bool = True):
         cwd=str(env.REPO),
         capture_output=capture,
         text=True,
+        creationflags=env.NO_WINDOW,
     )
     if check and result.returncode != 0:
         raise SystemExit("error: git {} failed\n{}".format(
@@ -34,7 +35,7 @@ def git(*args, check: bool = True, capture: bool = True):
 def ensure_lfs(log=print) -> None:
     """Install LFS hooks in this repo and confirm the filters are live."""
     result = subprocess.run(["git", "lfs", "install", "--local"],
-                            cwd=str(env.REPO), capture_output=True, text=True)
+                            cwd=str(env.REPO), capture_output=True, text=True, creationflags=env.NO_WINDOW)
     if result.returncode != 0:
         raise SystemExit(
             "error: git-lfs is not working in this repo.\n"
@@ -115,7 +116,7 @@ def push(log=print) -> None:
     branch = current_branch()
     log("Pushing to origin/{} (uploading LFS objects)...".format(branch))
     result = subprocess.run(["git", "push", "-u", "origin", branch],
-                            cwd=str(env.REPO), capture_output=True, text=True)
+                            cwd=str(env.REPO), capture_output=True, text=True, creationflags=env.NO_WINDOW)
     output = (result.stdout + result.stderr).strip()
     if result.returncode != 0:
         log("Push failed:")
@@ -140,7 +141,7 @@ def init_repo(cfg: dict, name: str, private: bool, log=print) -> str | None:
         log("  git remote add origin https://github.com/<you>/{}.git".format(name))
         return None
 
-    auth = subprocess.run([gh, "auth", "status"], capture_output=True, text=True)
+    auth = subprocess.run([gh, "auth", "status"], capture_output=True, text=True, creationflags=env.NO_WINDOW)
     if auth.returncode != 0:
         log("You are not signed in to GitHub CLI yet. Run this, then re-run 'lc init-repo':")
         log("  gh auth login")
@@ -149,7 +150,7 @@ def init_repo(cfg: dict, name: str, private: bool, log=print) -> str | None:
     visibility = "--private" if private else "--public"
     result = subprocess.run(
         [gh, "repo", "create", name, visibility, "--source", ".", "--remote", "origin"],
-        cwd=str(env.REPO), capture_output=True, text=True,
+        cwd=str(env.REPO), capture_output=True, text=True, creationflags=env.NO_WINDOW,
     )
     output = (result.stdout + result.stderr).strip()
     if result.returncode != 0:

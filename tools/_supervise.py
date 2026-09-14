@@ -37,6 +37,10 @@ def main() -> int:
             stdin=subprocess.PIPE,
             stdout=log,
             stderr=subprocess.STDOUT,
+            # This supervisor is detached and has no console, so without this
+            # Windows opens a fresh terminal window for ffmpeg - one per capture,
+            # on screen for the whole recording. Output already goes to the log.
+            creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
         )
         pidfile.write_text(str(proc.pid), encoding="utf-8")
 

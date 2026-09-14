@@ -32,7 +32,7 @@ def run_python(folder: Path, log=print) -> bool | None:
     log("Python")
     result = subprocess.run(
         [sys.executable, str(test)],
-        cwd=str(folder), capture_output=True, text=True,
+        cwd=str(folder), capture_output=True, text=True, creationflags=env.NO_WINDOW,
     )
     for line in (result.stdout + result.stderr).rstrip().splitlines():
         log("  " + line)
@@ -52,7 +52,7 @@ def run_cpp(folder: Path, log=print) -> bool | None:
     if "int main" not in src.read_text(encoding="utf-8", errors="replace"):
         # Pasted from LeetCode, so there is no driver to run; confirm it compiles.
         result = subprocess.run([gxx, "-std=c++20", "-fsyntax-only", str(src)],
-                                capture_output=True, text=True)
+                                capture_output=True, text=True, creationflags=env.NO_WINDOW)
         if result.returncode != 0:
             log("  does not compile:")
             for line in result.stderr.rstrip().splitlines()[:25]:
@@ -63,7 +63,7 @@ def run_cpp(folder: Path, log=print) -> bool | None:
     binary = folder / "solution_test.exe"
     compile_result = subprocess.run(
         [gxx, "-std=c++20", "-O2", "-DLOCAL_TEST", str(src), "-o", str(binary)],
-        capture_output=True, text=True,
+        capture_output=True, text=True, creationflags=env.NO_WINDOW,
     )
     if compile_result.returncode != 0:
         log("  compile failed:")
@@ -72,7 +72,7 @@ def run_cpp(folder: Path, log=print) -> bool | None:
         return False
 
     run_result = subprocess.run(
-        [str(binary)], cwd=str(folder), capture_output=True, text=True, timeout=60)
+        [str(binary)], cwd=str(folder), capture_output=True, text=True, creationflags=env.NO_WINDOW, timeout=60)
     for line in (run_result.stdout + run_result.stderr).rstrip().splitlines():
         log("  " + line)
     binary.unlink(missing_ok=True)

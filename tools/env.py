@@ -9,9 +9,16 @@ from __future__ import annotations
 import json
 import os
 import shutil
+import subprocess
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parent.parent
+
+# Console programs (git, ffmpeg, tasklist, ...) started from a process with no
+# console of its own - the pythonw launcher, the detached recording supervisor -
+# each get a brand-new visible terminal window. CREATE_NO_WINDOW suppresses it.
+# Every call site captures or redirects output, so nothing is lost.
+NO_WINDOW = getattr(subprocess, "CREATE_NO_WINDOW", 0)
 
 _WINGET = Path(os.environ.get("LOCALAPPDATA", "")) / "Microsoft" / "WinGet" / "Packages"
 

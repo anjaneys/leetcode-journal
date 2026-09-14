@@ -335,7 +335,7 @@ foreach ($p in $places) {
         script = script.replace(token, str(value))
     result = subprocess.run(
         ["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", script],
-        capture_output=True, text=True)
+        capture_output=True, creationflags=env.NO_WINDOW, text=True)
     if result.returncode != 0:
         log("Could not create shortcuts:\n" + (result.stderr or result.stdout).strip())
         return 1
@@ -379,7 +379,7 @@ def cmd_devices(args) -> int:
     ffmpeg = env.require("ffmpeg")
     result = subprocess.run(
         [ffmpeg, "-hide_banner", "-list_devices", "true", "-f", "dshow", "-i", "dummy"],
-        capture_output=True, text=True, encoding="utf-8", errors="replace")
+        capture_output=True, creationflags=env.NO_WINDOW, text=True, encoding="utf-8", errors="replace")
     rule("Capture devices")
     log("Copy the exact quoted name into config.json.\n")
     for line in (result.stderr or "").splitlines():
@@ -412,7 +412,7 @@ def cmd_doctor(args) -> int:
             log("  MISSING {:<8} {}".format(name, why))
 
     rule("Git LFS")
-    lfs = subprocess.run(["git", "lfs", "version"], capture_output=True, text=True)
+    lfs = subprocess.run(["git", "lfs", "version"], capture_output=True, creationflags=env.NO_WINDOW, text=True)
     log("  " + ("ok      " + lfs.stdout.strip() if lfs.returncode == 0 else "MISSING git-lfs"))
     clean = publish.git("config", "--get", "filter.lfs.clean", check=False).stdout.strip()
     log("  {} LFS filter {}".format("ok     " if clean else "WARN   ",
@@ -426,7 +426,7 @@ def cmd_doctor(args) -> int:
     if ffmpeg:
         out = subprocess.run(
             [ffmpeg, "-hide_banner", "-list_devices", "true", "-f", "dshow", "-i", "dummy"],
-            capture_output=True, text=True, encoding="utf-8", errors="replace").stderr or ""
+            capture_output=True, creationflags=env.NO_WINDOW, text=True, encoding="utf-8", errors="replace").stderr or ""
         cam = cfg["recorder"]["camera"]["device"]
         mic = cfg["recorder"]["audio"]["mic_device"]
         log("  {} camera '{}'".format("ok     " if cam in out else "MISSING", cam))
@@ -440,7 +440,7 @@ def cmd_doctor(args) -> int:
                else "WARN    no remote - run 'lc init-repo <name>'"))
     gh = env.which("gh")
     if gh:
-        auth = subprocess.run([gh, "auth", "status"], capture_output=True, text=True)
+        auth = subprocess.run([gh, "auth", "status"], capture_output=True, creationflags=env.NO_WINDOW, text=True)
         log("  " + ("ok      gh authenticated" if auth.returncode == 0
                     else "WARN    gh not signed in - run 'gh auth login'"))
 
