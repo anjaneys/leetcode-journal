@@ -29,7 +29,7 @@ from tkinter import messagebox, simpledialog, ttk
 REPO = Path(__file__).resolve().parent
 sys.path.insert(0, str(REPO))
 
-from tools import clipboard, codeimport, env, publish, recorder, writeup  # noqa: E402
+from tools import clipboard, codeimport, env, publish, writeup  # noqa: E402
 
 # lc.py runs under the console interpreter even though this window runs under
 # pythonw: pythonw has no usable stdout, and lc's output is what the log shows.
@@ -273,9 +273,6 @@ class App:
                     self._enable(True)
                     if callback:
                         callback(code, output)
-                elif kind == "live":
-                    self.live = payload
-                    self._paint_rec()
         except queue.Empty:
             pass
         self.root.after(100, self._drain)
@@ -461,7 +458,6 @@ class App:
         self._paint_code_status()
         self._dock()
         self._tick(self.gen)
-        self._poll_live(self.gen)
 
     def _apply_pin(self):
         self.root.attributes("-topmost", bool(self.pin.get()))
@@ -480,32 +476,13 @@ class App:
             self.timer.configure(text="--:--")
         self.root.after(1000, lambda: self._tick(gen))
 
-    def _poll_live(self, gen: int):
-        """Check every few seconds that the captures are really still running,
-        so a crashed camera shows up now rather than after the solve."""
-        if gen != self.gen:
-            return
-        if self.state.get("recording"):
-            snapshot = dict(self.state)
-            threading.Thread(
-                target=lambda: self.events.put(("live", recorder.status(snapshot))),
-                daemon=True).start()
-        self.root.after(8000, lambda: self._poll_live(gen))
-
     def _paint_rec(self):
         if self.view != "session":
             return
-        if not self.state.get("recording"):
-            self.rec.configure(text="not recording", style="Idle.TLabel")
-            return
-        live = self.live or {}
-        dead = [kind for kind in ("screen", "camera")
-                if self.state.get(kind + "_pid") and live.get(kind) is False]
-        if dead:
-            self.rec.configure(text="⚠ {} stopped".format(" + ".join(dead)),
-                               style="Warn.TLabel")
-        else:
+        if self.state.get("recording"):
             self.rec.configure(text="● REC", style="Rec.TLabel")
+        else:
+            self.rec.configure(text="not recording", style="Idle.TLabel")
 
     def _paint_code_status(self):
         if self.view != "session":
