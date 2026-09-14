@@ -6,9 +6,7 @@
 
 ## Walkthrough
 
-| Screen recording | Camera |
-|:--:|:--:|
-| [<img src="media/screen.jpg" width="380">](media/screen.mp4)<br><sub>14m 24s &middot; 13 MB</sub> | [<img src="media/camera.jpg" width="380">](media/camera.mp4)<br><sub>14m 25s &middot; 11 MB</sub> |
+_No recording attached to this solve._
 
 ## Notes
 
