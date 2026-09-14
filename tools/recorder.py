@@ -233,37 +233,8 @@ def start(cfg: dict, slug: str) -> dict:
         "obs_recording": False,
     }
 
-    if cfg["recorder"]["screen"]["enabled"]:
-        if backend == "obs":
-            obs_start(cfg)
-            state["obs_recording"] = True
-        else:
-            out = session_dir / "screen.mkv"
-            state["screen_pid"] = _spawn(
-                _screen_cmd(ffmpeg, cfg, out), session_dir, "screen")
-            state["screen_file"] = str(out)
-
-    if cfg["recorder"]["camera"]["enabled"]:
-        out = session_dir / "camera.mkv"
-        state["camera_pid"] = _spawn(
-            _camera_cmd(ffmpeg, cfg, out), session_dir, "camera")
-        state["camera_file"] = str(out)
-
-    # Give ffmpeg a moment to fail loudly (bad device name, device already in
-    # use) rather than discovering it 40 minutes later.
-    time.sleep(3.0)
-    problems = []
-    for kind in ("screen", "camera"):
-        pid = state[kind + "_pid"]
-        if pid and not _alive(pid):
-            log_file = session_dir / (kind + ".log")
-            log = log_file.read_text(errors="replace").strip() if log_file.exists() else ""
-            tail = "\n".join(log.splitlines()[-6:]) or "(no output)"
-            problems.append("{} capture died on startup:\n{}".format(kind, tail))
-    if problems:
-        stop(cfg, state)
-        raise SystemExit("error: " + "\n\nerror: ".join(problems))
-
+    _start_captures(cfg, state, ffmpeg, session_dir)
+    _check_started(cfg, state, session_dir)
     return state
 
 
@@ -306,3 +277,103 @@ def status(state: dict) -> dict:
         "screen": _alive(state.get("screen_pid") or 0),
         "camera": _alive(state.get("camera_pid") or 0),
     }
+
+
+def _start_captures(cfg: dict, state: dict, ffmpeg: str, session_dir: Path,
+                    suffix: str = "") -> None:
+    """Launch the screen and camera captures, noting their files in state."""
+    if cfg["recorder"]["screen"]["enabled"]:
+        if state.get("backend") == "obs":
+            obs_start(cfg)
+            state["obs_recording"] = True
+        else:
+            out = session_dir / "screen{}.mkv".format(suffix)
+            state["screen_pid"] = _spawn(
+                _screen_cmd(ffmpeg, cfg, out), session_dir, "screen")
+            state["screen_file"] = str(out)
+
+    if cfg["recorder"]["camera"]["enabled"]:
+        out = session_dir / "camera{}.mkv".format(suffix)
+        state["camera_pid"] = _spawn(
+            _camera_cmd(ffmpeg, cfg, out), session_dir, "camera")
+        state["camera_file"] = str(out)
+
+
+def _check_started(cfg: dict, state: dict, session_dir: Path) -> None:
+    # Give ffmpeg a moment to fail loudly (bad device name, device already in
+    # use) rather than discovering it 40 minutes later.
+    time.sleep(3.0)
+    problems = []
+    for kind in ("screen", "camera"):
+        pid = state[kind + "_pid"]
+        if pid and not _alive(pid):
+            log_file = session_dir / (kind + ".log")
+            log = log_file.read_text(errors="replace").strip() if log_file.exists() else ""
+            tail = "\n".join(log.splitlines()[-6:]) or "(no output)"
+            problems.append("{} capture died on startup:\n{}".format(kind, tail))
+    if problems:
+        stop(cfg, state)
+        raise SystemExit("error: " + "\n\nerror: ".join(problems))
+
+
+# --------------------------------------------------------------------------
+# Pause / resume
+#
+# ffmpeg has no pause. Pausing ends the current captures cleanly and resuming
+# starts a fresh pair of files, so a session becomes a list of segments that
+# `lc finish` joins. Suspending the ffmpeg processes instead would freeze the
+# screen grab on its last frame and overflow the webcam's capture buffer.
+# --------------------------------------------------------------------------
+
+def elapsed(state: dict) -> float:
+    """Recorded time so far, not counting time spent paused."""
+    total = float(state.get("elapsed_before") or 0)
+    if state.get("recording") and not state.get("paused"):
+        # Sessions started before pause existed have no segment_started_at.
+        started = state.get("segment_started_at") or state.get("started_at")
+        try:
+            total += max(0.0, (datetime.now() - datetime.fromisoformat(started)).total_seconds())
+        except (TypeError, ValueError):
+            pass
+    return total
+
+
+def pause(cfg: dict, state: dict) -> dict:
+    """Close the current segment. Returns the updated state."""
+    files = stop(cfg, state)
+    segments = state.setdefault("segments", {})
+    for kind in ("screen", "camera"):
+        done = segments.setdefault(kind, [])
+        if files.get(kind) and files[kind] not in done:
+            done.append(files[kind])
+        state[kind + "_pid"] = 0
+    state["elapsed_before"] = elapsed(state)  # before the flags below flip
+    state["recording"] = False
+    state["paused"] = True
+    return state
+
+
+def resume(cfg: dict, state: dict) -> dict:
+    """Start the next segment of a paused session. Returns the updated state."""
+    ffmpeg = env.require("ffmpeg")
+    session_dir = Path(state["session_dir"])
+    segments = state.setdefault("segments", {})
+    index = max(len(segments.get("screen", [])), len(segments.get("camera", []))) + 1
+    state["segment_started_at"] = datetime.now().isoformat(timespec="seconds")
+    _start_captures(cfg, state, ffmpeg, session_dir, "_{:02d}".format(index))
+    _check_started(cfg, state, session_dir)
+    state["recording"] = True
+    state["paused"] = False
+    return state
+
+
+def finished_segments(state: dict) -> dict:
+    """Recorded files per stream, in order, for a session that is not live."""
+    segments = {kind: list((state.get("segments") or {}).get(kind, []))
+                for kind in ("screen", "camera")}
+    raw = state.get("raw") or {}  # left by `lc stop` in sessions from before pause
+    for kind in ("screen", "camera"):
+        if raw.get(kind) and raw[kind] not in segments[kind]:
+            segments[kind].append(raw[kind])
+        segments[kind] = [f for f in segments[kind] if Path(f).exists()]
+    return segments

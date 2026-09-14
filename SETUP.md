@@ -23,6 +23,11 @@ Open **LeetCode Session** from the desktop, the Start Menu, or with
 saving again overwrites. Finishing with nothing saved warns you rather than
 publishing a solve with no code.
 
+**Pause** stops recording and **Resume** picks it back up; the timer only
+counts recorded time. Each pause starts a new pair of files on D:, and Finish
+joins them into one screen video and one camera video, keeping the narration
+in sync piece by piece.
+
 The **Notes** box is optional: approach, complexity, what tripped you up. It
 autosaves to `NOTES.md` and appears on the problem's GitHub page. Leave it
 empty and no notes file is created.
@@ -65,6 +70,7 @@ Other commands:
 |---|---|
 | `lc status` | Is anything recording, and for how long |
 | `lc start` / `lc stop` | Control recording without scaffolding or publishing |
+| `lc pause` / `lc resume` | Pause and resume recording; `lc finish` joins the pieces |
 | `lc rebuild` | Regenerate every README from stored metadata |
 | `lc devices` | List webcams and microphones with their exact names |
 | `lc doctor` | Check the toolchain, LFS wiring, and devices |

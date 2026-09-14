@@ -36,8 +36,8 @@ def rule(title: str):
 def cmd_new(args) -> int:
     cfg = env.load_config()
     state = env.load_state()
-    if state and any(recorder.status(state).values()):
-        log("A recording is already running for '{}'.".format(state.get("slug")))
+    if state and (state.get("paused") or any(recorder.status(state).values())):
+        log("A session is already open for '{}'.".format(state.get("slug")))
         log("Run 'lc finish' before starting another problem.")
         return 1
 
@@ -96,6 +96,8 @@ def cmd_start(args) -> int:
     if not state.get("folder"):
         log("No active problem. Run 'lc new <problem>' first.")
         return 1
+    if state.get("paused"):
+        return cmd_resume(args)
     if any(recorder.status(state).values()):
         log("Already recording.")
         return 0
@@ -108,22 +110,32 @@ def cmd_start(args) -> int:
 
 
 def cmd_stop(args) -> int:
+    # Stopping is a pause that you may never resume: the files are kept as
+    # segments either way, and `lc finish` publishes whatever was recorded.
+    return cmd_pause(args)
+
+
+def cmd_pause(args) -> int:
     cfg = env.load_config()
     state = env.load_state()
-    if not state:
+    if not state.get("recording") or state.get("paused"):
         log("Nothing is recording.")
         return 1
-    files = recorder.stop(cfg, state)
-    state["recording"] = False
-    state["raw"] = files
+    state = recorder.pause(cfg, state)
     env.save_state(state)
-    log("Recording stopped.")
-    for kind, path in files.items():
-        if path:
-            info = postprocess.probe(Path(path))
-            log("  {:<7} {}  ({})".format(
-                kind, Path(path).name, postprocess.human_size(info.get("size", 0))))
-    log("\nRun 'lc finish' to compress, commit, and push.")
+    log("Paused at {} recorded. 'lc resume' continues, 'lc finish' publishes.".format(
+        postprocess.human_duration(recorder.elapsed(state))))
+    return 0
+
+
+def cmd_resume(args) -> int:
+    state = env.load_state()
+    if not state.get("paused"):
+        log("Nothing is paused.")
+        return 1
+    state = recorder.resume(env.load_config(), state)
+    env.save_state(state)
+    log("Recording resumed for {}.".format(state.get("slug")))
     return 0
 
 
@@ -135,11 +147,9 @@ def cmd_status(args) -> int:
     live = recorder.status(state)
     log("Problem : {}".format(state.get("slug", "?")))
     log("Folder  : {}".format(state.get("folder", "?")))
-    if state.get("started_at"):
-        started = datetime.fromisoformat(state["started_at"])
-        elapsed = (datetime.now() - started).total_seconds()
-        log("Started : {}  ({} ago)".format(
-            started.strftime("%H:%M:%S"), postprocess.human_duration(elapsed)))
+    if state.get("recording") or state.get("paused"):
+        log("Recorded: {}{}".format(postprocess.human_duration(recorder.elapsed(state)),
+                                    "  (paused)" if state.get("paused") else ""))
     log("Screen  : {}".format("recording" if live["screen"] else "stopped"))
     log("Camera  : {}".format("recording" if live["camera"] else "stopped"))
     return 0
@@ -174,18 +184,22 @@ def cmd_finish(args) -> int:
 
     if any(recorder.status(state).values()):
         rule("Stopping recording")
-        state["raw"] = recorder.stop(cfg, state)
+        state = recorder.pause(cfg, state)
+        env.save_state(state)  # the segment list survives even if compression fails
         log("Stopped.")
 
-    raw = state.get("raw") or {}
+    segments = recorder.finished_segments(state)
     media_dir = folder / "media"
     media_dir.mkdir(exist_ok=True)
     record = {"solved_on": date.today().isoformat(), "media": {}}
 
-    if raw.get("screen") or raw.get("camera"):
+    if segments["screen"] or segments["camera"]:
         rule("Compressing")
+    first = (segments["screen"] or segments["camera"] or [None])[0]
+    work_dir = Path(state.get("session_dir") or (Path(first).parent if first else media_dir))
+    sources = _prepare_sources(cfg, segments, work_dir, log)
     for kind in ("screen", "camera"):
-        src = raw.get(kind)
+        src, borrow, joined = sources.get(kind, (None, None, False))
         if not src or not Path(src).exists():
             continue
         src = Path(src)
@@ -193,14 +207,9 @@ def cmd_finish(args) -> int:
         dest = media_dir / (kind + ".mp4")
         log("  {:<7} {} -> {}".format(
             kind, postprocess.human_size(before.get("size", 0)), dest.name))
-        # The screen capture is silent by design; borrow the narration that
-        # was recorded alongside the webcam.
-        borrow = None
-        if (kind == "screen" and raw.get("camera")
-                and cfg["recorder"]["screen"].get("borrow_camera_audio", True)):
-            borrow = Path(raw["camera"])
         if not postprocess.compress(src, dest, cfg["encode"][kind], log,
-                                    audio_from=borrow):
+                                    audio_from=Path(borrow) if borrow else None,
+                                    fill_gaps=joined and postprocess.has_audio(src)):
             continue
         after = postprocess.probe(dest)
         entry = {
@@ -344,6 +353,50 @@ foreach ($p in $places) {
     if hotkey:
         log("Hotkey: {} opens LeetCode Session from anywhere.".format(hotkey))
     return 0
+
+
+def _prepare_sources(cfg: dict, segments: dict, work_dir: Path, log) -> dict:
+    """One compression input per stream from its list of recorded segments.
+
+    Returns {kind: (source, audio_from, joined)}. A session that was never
+    paused passes straight through, with the screen borrowing the camera's
+    narration as usual. For a paused one, each screen segment first gets its
+    own camera segment's audio, aligned by end point, and those pairs are then
+    joined. Joining each stream first and aligning once would let the webcam's
+    warm-up delay stack up, pushing narration further out of sync after every
+    pause.
+    """
+    screens, cameras = segments["screen"], segments["camera"]
+    borrow = cfg["recorder"]["screen"].get("borrow_camera_audio", True)
+    out = {}
+    if len(screens) <= 1 and len(cameras) <= 1:
+        if screens:
+            out["screen"] = (screens[0], cameras[0] if borrow and cameras else None, False)
+        if cameras:
+            out["camera"] = (cameras[0], None, False)
+        return out
+
+    log("  joining {} recorded pieces".format(max(len(screens), len(cameras))))
+    if cameras:
+        joined = postprocess.join(cameras, work_dir / "camera_joined.mkv")
+        if joined:
+            out["camera"] = (joined, None, True)
+        else:
+            log("  ! could not join the camera pieces")
+    if screens:
+        joined = None
+        if borrow and len(cameras) == len(screens):
+            voiced = [postprocess.mux_aligned(s, c, work_dir / "screen_{:02d}_voiced.mkv".format(i))
+                      for i, (s, c) in enumerate(zip(screens, cameras), start=1)]
+            if all(voiced):
+                joined = postprocess.join(voiced, work_dir / "screen_joined.mkv")
+        if not joined:  # fall back to silent screen video rather than none
+            joined = postprocess.join(screens, work_dir / "screen_joined.mkv")
+        if joined:
+            out["screen"] = (joined, None, True)
+        else:
+            log("  ! could not join the screen pieces")
+    return out
 
 
 def cmd_rebuild(args) -> int:
@@ -490,6 +543,12 @@ def build_parser() -> argparse.ArgumentParser:
 
     s = sub.add_parser("stop", help="stop recording without publishing")
     s.set_defaults(func=cmd_stop)
+
+    s = sub.add_parser("pause", help="pause recording ('lc resume' picks it back up)")
+    s.set_defaults(func=cmd_pause)
+
+    s = sub.add_parser("resume", help="resume a paused recording")
+    s.set_defaults(func=cmd_resume)
 
     s = sub.add_parser("status", help="show the active session")
     s.set_defaults(func=cmd_status)

@@ -58,7 +58,7 @@ def human_duration(seconds: float) -> str:
 
 
 def compress(src: Path, dest: Path, profile: dict, log=print,
-             audio_from: Path | None = None) -> bool:
+             audio_from: Path | None = None, fill_gaps: bool = False) -> bool:
     """Transcode src -> dest using the given encode profile.
 
     audio_from borrows the audio track of another file - used to put the
@@ -101,6 +101,12 @@ def compress(src: Path, dest: Path, profile: dict, log=print,
         # to capture audio degrades to a silent screen video instead of an error.
         cmd += ["-map", "0:v:0", "-map", "1:a:0?"]
 
+    if fill_gaps:
+        # Joined segments leave small holes in the audio between pieces. MP4
+        # audio cannot represent a hole, so without padding them with silence
+        # the narration would slide earlier after every pause.
+        cmd += ["-af", "aresample=async=1:first_pts=0"]
+
     cmd += ["-c:a", "aac", "-b:a", "{}k".format(profile["audio_kbps"]), "-ac", "1",
             # faststart puts the index at the front so GitHub can stream it
             # inline instead of downloading the whole file before playback.
@@ -130,3 +136,62 @@ def poster(src: Path, dest: Path, at_seconds: float = 3.0) -> bool:
     ]
     subprocess.run(cmd, capture_output=True, creationflags=env.NO_WINDOW)
     return Path(dest).exists()
+
+
+def has_audio(path: Path) -> bool:
+    ffprobe = env.which("ffprobe")
+    if not ffprobe or not Path(path).exists():
+        return False
+    try:
+        out = subprocess.run(
+            [ffprobe, "-v", "error", "-select_streams", "a",
+             "-show_entries", "stream=index", "-of", "csv=p=0", str(path)],
+            capture_output=True, creationflags=env.NO_WINDOW, text=True, timeout=60,
+        ).stdout
+    except (subprocess.SubprocessError, OSError):
+        return False
+    return bool(out.strip())
+
+
+def join(files, dest: Path) -> Path | None:
+    """Concatenate recorded segments end to end without re-encoding.
+
+    Every segment comes from the same capture command, so the streams match
+    and a stream copy is safe.
+    """
+    files = [Path(f) for f in files if Path(f).exists()]
+    if not files:
+        return None
+    if len(files) == 1:
+        return files[0]
+    ffmpeg = env.require("ffmpeg")
+    dest = Path(dest)
+    listing = dest.with_suffix(".txt")
+    # Forward slashes sidestep the concat list's backslash escaping rules.
+    listing.write_text("".join(
+        "file '{}'\n".format(str(f).replace("\\", "/").replace("'", "'\\''"))
+        for f in files), encoding="utf-8")
+    result = subprocess.run(
+        [ffmpeg, "-hide_banner", "-loglevel", "error", "-y", "-f", "concat",
+         "-safe", "0", "-i", str(listing), "-c", "copy", str(dest)],
+        capture_output=True, creationflags=env.NO_WINDOW, text=True)
+    return dest if result.returncode == 0 and dest.exists() else None
+
+
+def mux_aligned(screen: Path, camera: Path, dest: Path) -> Path | None:
+    """Give one silent screen segment its camera segment's audio, aligned by
+    end point (both stop together; the webcam starts late), without
+    re-encoding either stream."""
+    screen, camera, dest = Path(screen), Path(camera), Path(dest)
+    if not screen.exists() or not camera.exists():
+        return None
+    ffmpeg = env.require("ffmpeg")
+    skew = probe(screen).get("duration", 0) - probe(camera).get("duration", 0)
+    cmd = [ffmpeg, "-hide_banner", "-loglevel", "error", "-y", "-i", str(screen)]
+    if skew > 0.1:
+        cmd += ["-itsoffset", "{:.3f}".format(skew)]
+    elif skew < -0.1:
+        cmd += ["-ss", "{:.3f}".format(-skew)]
+    cmd += ["-i", str(camera), "-map", "0:v:0", "-map", "1:a:0?", "-c", "copy", str(dest)]
+    result = subprocess.run(cmd, capture_output=True, creationflags=env.NO_WINDOW, text=True)
+    return dest if result.returncode == 0 and dest.exists() else None

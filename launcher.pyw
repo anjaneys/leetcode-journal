@@ -29,7 +29,7 @@ from tkinter import messagebox, simpledialog, ttk
 REPO = Path(__file__).resolve().parent
 sys.path.insert(0, str(REPO))
 
-from tools import clipboard, codeimport, env, publish, writeup  # noqa: E402
+from tools import clipboard, codeimport, env, publish, recorder, writeup  # noqa: E402
 
 # lc.py runs under the console interpreter even though this window runs under
 # pythonw: pythonw has no usable stdout, and lc's output is what the log shows.
@@ -419,18 +419,22 @@ class App:
 
         row = ttk.Frame(f)
         row.pack(fill="x", pady=(4, 0))
+        if recording:
+            toggle = ttk.Button(row, text="Pause", command=self.pause)
+        elif self.state.get("paused"):
+            toggle = ttk.Button(row, text="Resume", style="Primary.TButton",
+                                command=self.resume)
+        else:
+            toggle = ttk.Button(row, text="Start recording", command=self.start_recording)
         save = ttk.Button(row, text="Save code", command=self.save_code)
         finish = ttk.Button(row, text="Finish & upload", style="Primary.TButton",
                             command=self.finish)
         discard = ttk.Button(row, text="Discard", command=self.discard)
-        save.pack(side="left")
-        finish.pack(side="left", padx=6)
+        toggle.pack(side="left")
+        save.pack(side="left", padx=6)
+        finish.pack(side="left")
         discard.pack(side="right")
-        self.buttons = [save, finish, discard]
-        if not recording:
-            record = ttk.Button(row, text="Start recording", command=self.start_recording)
-            record.pack(side="left")
-            self.buttons.append(record)
+        self.buttons = [toggle, save, finish, discard]
 
         self.code_status = ttk.Label(f, text="", style="Muted.TLabel",
                                      wraplength=430, justify="left")
@@ -469,13 +473,9 @@ class App:
     def _tick(self, gen: int):
         if gen != self.gen:
             return
-        started = self.state.get("started_at")
-        if self.state.get("recording") and started:
-            try:
-                elapsed = (datetime.now() - datetime.fromisoformat(started)).total_seconds()
-            except ValueError:
-                elapsed = 0
-            self.timer.configure(text=fmt_elapsed(elapsed))
+        if self.state.get("recording") or self.state.get("paused"):
+            # Counts recorded time only, so it holds still while paused.
+            self.timer.configure(text=fmt_elapsed(recorder.elapsed(self.state)))
         else:
             self.timer.configure(text="--:--")
         self.root.after(1000, lambda: self._tick(gen))
@@ -485,6 +485,8 @@ class App:
             return
         if self.state.get("recording"):
             self.rec.configure(text="● REC", style="Rec.TLabel")
+        elif self.state.get("paused"):
+            self.rec.configure(text="PAUSED", style="Warn.TLabel")
         else:
             self.rec.configure(text="not recording", style="Idle.TLabel")
 
@@ -540,6 +542,18 @@ class App:
             path.unlink()
 
     # ----------------------------------------------------------- actions
+
+    def pause(self):
+        self.run_lc(["pause"], done=self._toggled)
+
+    def resume(self):
+        self.run_lc(["resume"], done=self._toggled)
+
+    def _toggled(self, code, output):
+        if code != 0:
+            tail = "\n".join(output.strip().splitlines()[-4:]) or "Something went wrong."
+            messagebox.showerror("LeetCode Session", tail, parent=self.root)
+        self.show_session()
 
     def start_recording(self):
         self.run_lc(["start"], done=lambda _c, output: self.show_session())
