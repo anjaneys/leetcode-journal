@@ -2,10 +2,11 @@
 
 Every problem I solve, recorded start to finish: the screen, the camera, the code, and what I was actually thinking.
 
-**1** solved &nbsp;&middot;&nbsp; 1 Easy &nbsp;&middot;&nbsp; 0 Medium &nbsp;&middot;&nbsp; 0 Hard
+**2** solved &nbsp;&middot;&nbsp; 2 Easy &nbsp;&middot;&nbsp; 0 Medium &nbsp;&middot;&nbsp; 0 Hard
 
 | # | Problem | Difficulty | Lang | Recording | Date |
 |--:|---------|------------|------|-----------|------|
+| 0027 | [Remove Element](solutions/0027-remove-element/) | Easy | C++ | [screen](solutions/0027-remove-element/media/screen.mp4) [cam](solutions/0027-remove-element/media/camera.mp4) | 2026-09-14 |
 | 0088 | [Merge Sorted Array](solutions/0088-merge-sorted-array/) | Easy | C++ | [screen](solutions/0088-merge-sorted-array/media/screen.mp4) [cam](solutions/0088-merge-sorted-array/media/camera.mp4) | 2026-09-13 |
 
 ## How this repo is produced
