@@ -2,12 +2,13 @@
 
 Every problem I solve, recorded start to finish: the screen, the camera, the code, and what I was actually thinking.
 
-**3** solved &nbsp;&middot;&nbsp; 3 Easy &nbsp;&middot;&nbsp; 0 Medium &nbsp;&middot;&nbsp; 0 Hard
+**4** solved &nbsp;&middot;&nbsp; 3 Easy &nbsp;&middot;&nbsp; 1 Medium &nbsp;&middot;&nbsp; 0 Hard
 
 | # | Problem | Difficulty | Lang | Recording | Date |
 |--:|---------|------------|------|-----------|------|
 | 0026 | [Remove Duplicates from Sorted Array](solutions/0026-remove-duplicates-from-sorted-array/) | Easy | C++ | [screen](solutions/0026-remove-duplicates-from-sorted-array/media/screen.mp4) [cam](solutions/0026-remove-duplicates-from-sorted-array/media/camera.mp4) | 2026-09-15 |
 | 0027 | [Remove Element](solutions/0027-remove-element/) | Easy | C++ | [screen](solutions/0027-remove-element/media/screen.mp4) [cam](solutions/0027-remove-element/media/camera.mp4) | 2026-09-14 |
+| 0080 | [Remove Duplicates from Sorted Array II](solutions/0080-remove-duplicates-from-sorted-array-ii/) | Medium | C++ | [screen](solutions/0080-remove-duplicates-from-sorted-array-ii/media/screen.mp4) [cam](solutions/0080-remove-duplicates-from-sorted-array-ii/media/camera.mp4) | 2026-09-20 |
 | 0088 | [Merge Sorted Array](solutions/0088-merge-sorted-array/) | Easy | C++ | [screen](solutions/0088-merge-sorted-array/media/screen.mp4) [cam](solutions/0088-merge-sorted-array/media/camera.mp4) | 2026-09-13 |
 
 ## How this repo is produced
