@@ -2,7 +2,7 @@
 
 Every problem I solve, recorded start to finish: the screen, the camera, the code, and what I was actually thinking.
 
-**5** solved &nbsp;&middot;&nbsp; 4 Easy &nbsp;&middot;&nbsp; 1 Medium &nbsp;&middot;&nbsp; 0 Hard
+**6** solved &nbsp;&middot;&nbsp; 4 Easy &nbsp;&middot;&nbsp; 2 Medium &nbsp;&middot;&nbsp; 0 Hard
 
 | # | Problem | Difficulty | Lang | Recording | Date |
 |--:|---------|------------|------|-----------|------|
@@ -11,6 +11,7 @@ Every problem I solve, recorded start to finish: the screen, the camera, the cod
 | 0080 | [Remove Duplicates from Sorted Array II](solutions/0080-remove-duplicates-from-sorted-array-ii/) | Medium | C++ | [screen](solutions/0080-remove-duplicates-from-sorted-array-ii/media/screen.mp4) [cam](solutions/0080-remove-duplicates-from-sorted-array-ii/media/camera.mp4) | 2026-09-20 |
 | 0088 | [Merge Sorted Array](solutions/0088-merge-sorted-array/) | Easy | C++ | [screen](solutions/0088-merge-sorted-array/media/screen.mp4) [cam](solutions/0088-merge-sorted-array/media/camera.mp4) | 2026-09-13 |
 | 0169 | [Majority Element](solutions/0169-majority-element/) | Easy | C++ | [screen](solutions/0169-majority-element/media/screen.mp4) [cam](solutions/0169-majority-element/media/camera.mp4) | 2026-09-21 |
+| 0189 | [Rotate Array](solutions/0189-rotate-array/) | Medium | C++ | [screen](solutions/0189-rotate-array/media/screen.mp4) [cam](solutions/0189-rotate-array/media/camera.mp4) | 2026-09-22 |
 
 ## How this repo is produced
 

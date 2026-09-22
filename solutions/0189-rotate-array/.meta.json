@@ -1,0 +1,32 @@
+{
+  "ok": true,
+  "slug": "rotate-array",
+  "id": "0189",
+  "title": "Rotate Array",
+  "difficulty": "Medium",
+  "tags": [
+    "Array",
+    "Math",
+    "Two Pointers"
+  ],
+  "statement": "Given an integer array `nums`, rotate the array to the right by `k` steps, where `k` is non-negative.\n\nExample 1:**\n\n```\n\n**Input:** nums = [1,2,3,4,5,6,7], k = 3\n**Output:** [5,6,7,1,2,3,4]\n**Explanation:**\nrotate 1 steps to the right: [7,1,2,3,4,5,6]\nrotate 2 steps to the right: [6,7,1,2,3,4,5]\nrotate 3 steps to the right: [5,6,7,1,2,3,4]\n\n```\n\nExample 2:**\n\n```\n\n**Input:** nums = [-1,-100,3,99], k = 2\n**Output:** [3,99,-1,-100]\n**Explanation:**\nrotate 1 steps to the right: [99,-1,-100,3]\nrotate 2 steps to the right: [3,99,-1,-100]\n\n```\n\n**Constraints:**\n\n- `1 <= nums.length <= 10^5`\n\n- `-2^31 <= nums[i] <= 2^31 - 1`\n\n- `0 <= k <= 10^5`\n\n**Follow up:**\n\n- Try to come up with as many solutions as you can. There are at least **three** different ways to solve this problem.\n\n- Could you do it in-place with `O(1)` extra space?",
+  "snippets": {
+    "cpp": "class Solution {\npublic:\n    void rotate(vector<int>& nums, int k) {\n        \n    }\n};",
+    "java": "class Solution {\n    public void rotate(int[] nums, int k) {\n        \n    }\n}",
+    "python3": "class Solution:\n    def rotate(self, nums: list[int], k: int) -> None:\n        \"\"\"\n        Do not return anything, modify nums in-place instead.\n        \"\"\"\n        ",
+    "python": "class Solution(object):\n    def rotate(self, nums, k):\n        \"\"\"\n        :type nums: List[int]\n        :type k: int\n        :rtype: None Do not return anything, modify nums in-place instead.\n        \"\"\"\n        ",
+    "javascript": "/**\n * @param {number[]} nums\n * @param {number} k\n * @return {void} Do not return anything, modify nums in-place instead.\n */\nvar rotate = function(nums, k) {\n    \n};",
+    "typescript": "/**\n Do not return anything, modify nums in-place instead.\n */\nfunction rotate(nums: number[], k: number): void {\n    \n};",
+    "csharp": "public class Solution {\n    public void Rotate(int[] nums, int k) {\n        \n    }\n}",
+    "c": "void rotate(int* nums, int numsSize, int k) {\n    \n}",
+    "golang": "func rotate(nums []int, k int)  {\n    \n}",
+    "kotlin": "class Solution {\n    fun rotate(nums: IntArray, k: Int): Unit {\n        \n    }\n}",
+    "swift": "class Solution {\n    func rotate(_ nums: inout [Int], _ k: Int) {\n        \n    }\n}",
+    "rust": "impl Solution {\n    pub fn rotate(nums: &mut Vec<i32>, k: i32) {\n        \n    }\n}",
+    "ruby": "# @param {Integer[]} nums\n# @param {Integer} k\n# @return {Void} Do not return anything, modify nums in-place instead.\ndef rotate(nums, k)\n    \nend",
+    "php": "class Solution {\n\n    /**\n     * @param Integer[] $nums\n     * @param Integer $k\n     * @return NULL\n     */\n    function rotate(&$nums, $k) {\n        \n    }\n}",
+    "dart": "class Solution {\n  void rotate(List<int> nums, int k) {\n    \n  }\n}",
+    "scala": "object Solution {\n    def rotate(nums: Array[Int], k: Int): Unit = {\n        \n    }\n}"
+  },
+  "url": "https://leetcode.com/problems/rotate-array/"
+}

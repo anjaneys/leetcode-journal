@@ -1,0 +1,17 @@
+{
+  "solved_on": "2026-09-22",
+  "media": {
+    "screen": {
+      "file": "screen.mp4",
+      "size": 8677582,
+      "duration": 601.859932,
+      "poster": "screen.jpg"
+    },
+    "camera": {
+      "file": "camera.mp4",
+      "size": 8547671,
+      "duration": 599.768934,
+      "poster": "camera.jpg"
+    }
+  }
+}
