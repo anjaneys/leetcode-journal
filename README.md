@@ -2,7 +2,7 @@
 
 Every problem I solve, recorded start to finish: the screen, the camera, the code, and what I was actually thinking.
 
-**12** solved &nbsp;&middot;&nbsp; 5 Easy &nbsp;&middot;&nbsp; 7 Medium &nbsp;&middot;&nbsp; 0 Hard
+**13** solved &nbsp;&middot;&nbsp; 5 Easy &nbsp;&middot;&nbsp; 8 Medium &nbsp;&middot;&nbsp; 0 Hard
 
 | # | Problem | Difficulty | Lang | Recording | Date |
 |--:|---------|------------|------|-----------|------|
@@ -16,6 +16,7 @@ Every problem I solve, recorded start to finish: the screen, the camera, the cod
 | 0122 | [Best Time to Buy and Sell Stock II](solutions/0122-best-time-to-buy-and-sell-stock-ii/) | Medium | C++ | [screen](solutions/0122-best-time-to-buy-and-sell-stock-ii/media/screen.mp4) [cam](solutions/0122-best-time-to-buy-and-sell-stock-ii/media/camera.mp4) | 2026-10-04 |
 | 0169 | [Majority Element](solutions/0169-majority-element/) | Easy | C++ | [screen](solutions/0169-majority-element/media/screen.mp4) [cam](solutions/0169-majority-element/media/camera.mp4) | 2026-09-21 |
 | 0189 | [Rotate Array](solutions/0189-rotate-array/) | Medium | C++ | [screen](solutions/0189-rotate-array/media/screen.mp4) [cam](solutions/0189-rotate-array/media/camera.mp4) | 2026-09-22 |
+| 0238 | [Product of Array Except Self](solutions/0238-product-of-array-except-self/) | Medium | C++ | [screen](solutions/0238-product-of-array-except-self/media/screen.mp4) [cam](solutions/0238-product-of-array-except-self/media/camera.mp4) | 2026-10-22 |
 | 0274 | [H-Index](solutions/0274-h-index/) | Medium | C++ | [screen](solutions/0274-h-index/media/screen.mp4) [cam](solutions/0274-h-index/media/camera.mp4) | 2026-10-13 |
 | 0380 | [Insert Delete GetRandom O(1)](solutions/0380-insert-delete-getrandom-o1/) | Medium | C++ | [screen](solutions/0380-insert-delete-getrandom-o1/media/screen.mp4) [cam](solutions/0380-insert-delete-getrandom-o1/media/camera.mp4) | 2026-10-21 |
 
